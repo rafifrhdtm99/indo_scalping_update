@@ -389,6 +389,56 @@ def hitung_confidence(ind, harga, sinyal):
 
     return score, label, color
 
+def buat_analisis_singkat(ind, harga, sinyal, chg):
+    if ind is None or not ind:
+        return "Data historis tidak mencukupi untuk melakukan analisis teknikal."
+
+    rsi    = ind.get("RSI", 50)
+    ema9   = ind.get("EMA9", harga)
+    ema21  = ind.get("EMA21", harga)
+    ema50  = ind.get("EMA50", harga)
+    mh     = ind.get("MACD_hist", 0)
+    vol    = ind.get("volume", 0)
+    volma  = ind.get("vol_ma20", vol or 1)
+
+    tren_besar = "<b>BULLISH</b>" if harga > ema50 else "<b>BEARISH</b>"
+    tren_pendek = "<b>Bullish (Golden Cross)</b>" if ema9 > ema21 else "<b>Bearish (Dead Cross)</b>"
+
+    # RSI Description
+    if rsi < 30:
+        rsi_desc = "sangat jenuh jual (oversold), berpotensi rebound kuat"
+    elif rsi < 40:
+        rsi_desc = "memasuki area jenuh jual, menarik untuk akumulasi"
+    elif rsi > 70:
+        rsi_desc = "jenuh beli (overbought), rawan aksi profit taking"
+    else:
+        rsi_desc = "berada di area netral"
+
+    # MACD Description
+    macd_desc = "momentum naik menguat" if mh > 0 else "momentum turun mendominasi"
+
+    # Volume Description
+    ratio = vol / volma if volma > 0 else 1.0
+    if ratio >= 1.5:
+        vol_desc = "disertai lonjakan volume transaksi sangat tinggi (indikasi akumulasi)"
+    elif ratio >= 1.2:
+        vol_desc = "dengan volume di atas rata-rata"
+    else:
+        vol_desc = "dengan volume transaksi stabil"
+
+    # Kesimpulan berdasarkan Sinyal
+    if sinyal == "BELI":
+        kesimpulan = f"Saham dalam tren besar {tren_besar} dengan jangka pendek yang kuat. Rekomendasi <b>BELI</b> untuk scalping cepat."
+    elif sinyal == "BSJP":
+        kesimpulan = f"Sinyal <b>BSJP</b> (Beli Sore Jual Pagi) aktif karena didukung akumulasi volume. Momentum naik mendukung entri overnight."
+    elif sinyal == "JUAL":
+        kesimpulan = f"Tren jangka pendek mulai melemah ({tren_pendek}) dan RSI {rsi_desc}. Disarankan melakukan penjualan / pembatasan risiko."
+    else:  # TUNGGU
+        kesimpulan = f"Kondisi RSI {rsi_desc} dan momentum masih berkonsolidasi. Lebih baik <b>TUNGGU</b> konfirmasi sinyal berikutnya."
+
+    text = f"Tren besar saat ini {tren_besar} dengan jangka pendek {tren_pendek}. Kondisi RSI {rsi_desc}, {macd_desc} {vol_desc}. {kesimpulan}"
+    return text
+
 def hitung_lot(modal, harga):
     if harga <= 0: return 0
     return int(modal // (harga * 100))
@@ -667,7 +717,8 @@ def render_kartu(r):
     ema50    = ind.get("EMA50",0)
     mh       = ind.get("MACD_hist",0)
     rsi_col  = "#ef4444" if rsi>70 else ("#22c55e" if rsi<40 else "#f59e0b")
-    alasan_str = " · ".join(r["alasan"][:5])
+    
+    analisis = buat_analisis_singkat(ind, harga, sinyal, chg)
 
     confidence = r.get("confidence", 50)
     conf_label = r.get("conf_label", "Cukup")
@@ -699,7 +750,7 @@ def render_kartu(r):
             <span class="ind-pill">{'MACD+ ✅' if mh>0 else 'MACD- ⚠️'}</span>
             <span class="ind-pill">EMA50 <b style="color:{'#22c55e' if harga>ema50 else '#ef4444'}">{ema50:.0f}</b></span>
         </div>
-        <p style="font-size:0.76rem;color:#64748b;margin:8px 0 0 0"><i>{alasan_str}</i></p>
+        <p style="font-size:0.78rem;color:#cbd5e1;margin:12px 0 0 0;line-height:1.5;">{analisis}</p>
     </div>
     """, unsafe_allow_html=True)
 
