@@ -401,43 +401,60 @@ def buat_analisis_singkat(ind, harga, sinyal, chg):
     vol    = ind.get("volume", 0)
     volma  = ind.get("vol_ma20", vol or 1)
 
-    tren_besar = "<b>BULLISH</b>" if harga > ema50 else "<b>BEARISH</b>"
-    tren_pendek = "<b>Bullish (Golden Cross)</b>" if ema9 > ema21 else "<b>Bearish (Dead Cross)</b>"
-
-    # RSI Description
-    if rsi < 30:
-        rsi_desc = "sangat jenuh jual (oversold), berpotensi rebound kuat"
-    elif rsi < 40:
-        rsi_desc = "memasuki area jenuh jual, menarik untuk akumulasi"
-    elif rsi > 70:
-        rsi_desc = "jenuh beli (overbought), rawan aksi profit taking"
+    # 1. ANALISIS TREN (TREN BESAR & TREN PENDEK)
+    if harga > ema50:
+        if ema9 > ema21:
+            tren_txt = "Saham sedang bergerak dalam fase <b>uptrend yang sangat kuat</b> (Bullish kokoh)."
+        else:
+            tren_txt = "Meskipun tren jangka panjang masih <b>Bullish</b>, saat ini sedang terjadi koreksi/konsolidasi jangka pendek."
     else:
-        rsi_desc = "berada di area netral"
+        if ema9 > ema21:
+            tren_txt = "Saham berada dalam tren turun jangka panjang (<b>Bearish</b>), namun mulai menunjukkan indikasi <b>rebound jangka pendek</b>."
+        else:
+            tren_txt = "Saham berada dalam fase <b>downtrend dominan</b> (Bearish kuat) baik jangka panjang maupun jangka pendek."
 
-    # MACD Description
-    macd_desc = "momentum naik menguat" if mh > 0 else "momentum turun mendominasi"
+    # 2. ANALISIS MOMENTUM (RSI & MACD)
+    if rsi < 30:
+        rsi_txt = "Momentum RSI menunjukkan kondisi <b>jenuh jual ekstrem (oversold)</b> yang berpotensi memicu technical rebound cepat."
+    elif rsi < 40:
+        rsi_txt = "Indikator RSI berada di area <b>hampir jenuh jual (oversold)</b>, menandakan harga sudah mulai murah."
+    elif rsi > 70:
+        rsi_txt = "RSI sudah memasuki area <b>jenuh beli (overbought)</b>, sehingga rawan terkena aksi ambil untung (profit taking)."
+    else:
+        rsi_txt = "Indikator RSI berada di area netral (konsolidasi)."
 
-    # Volume Description
+    if mh > 0:
+        macd_txt = "Hal ini dikonfirmasi oleh MACD histogram yang <b>positif</b>, menandakan momentum beli sedang bertambah kuat."
+    else:
+        macd_txt = "Tekanan ini didukung oleh MACD histogram yang <b>negatif</b>, menunjukkan dominasi penjual masih kuat."
+
+    # 3. ANALISIS VOLUME
     ratio = vol / volma if volma > 0 else 1.0
     if ratio >= 1.5:
-        vol_desc = "disertai lonjakan volume transaksi sangat tinggi (indikasi akumulasi)"
+        if sinyal in ("BELI", "BSJP"):
+            vol_txt = "Lonjakan volume transaksi yang <b>sangat tinggi</b> mengindikasikan adanya <b>akumulasi besar-besaran</b> oleh pasar."
+        else:
+            vol_txt = "Lonjakan volume transaksi yang <b>sangat tinggi</b> mendampingi penurunan harga, menandakan adanya <b>tekanan jual yang masif</b>."
     elif ratio >= 1.2:
-        vol_desc = "dengan volume di atas rata-rata"
+        vol_txt = "Volume transaksi terpantau meningkat di atas rata-rata harian, menandakan partisipasi pasar cukup aktif."
     else:
-        vol_desc = "dengan volume transaksi stabil"
+        vol_txt = "Volume transaksi terpantau stabil di bawah rata-rata harian."
 
-    # Kesimpulan berdasarkan Sinyal
+    # 4. SARAN AKSI & KESIMPULAN
     if sinyal == "BELI":
-        kesimpulan = f"Saham dalam tren besar {tren_besar} dengan jangka pendek yang kuat. Rekomendasi <b>BELI</b> untuk scalping cepat."
+        aksi_txt = "Ini adalah momen yang baik untuk melakukan entri <b>BELI</b> guna memanfaatkan momentum kenaikan cepat (scalping)."
     elif sinyal == "BSJP":
-        kesimpulan = f"Sinyal <b>BSJP</b> (Beli Sore Jual Pagi) aktif karena didukung akumulasi volume. Momentum naik mendukung entri overnight."
+        aksi_txt = "Akumulasi volume di akhir sesi mendukung entri <b>BSJP</b> (Beli Sore Jual Pagi) dengan target jual di pembukaan esok hari."
     elif sinyal == "JUAL":
-        kesimpulan = f"Tren jangka pendek mulai melemah ({tren_pendek}) dan RSI {rsi_desc}. Disarankan melakukan penjualan / pembatasan risiko."
-    else:  # TUNGGU
-        kesimpulan = f"Kondisi RSI {rsi_desc} dan momentum masih berkonsolidasi. Lebih baik <b>TUNGGU</b> konfirmasi sinyal berikutnya."
+        if rsi < 35:
+            aksi_txt = "Meskipun RSI sudah jenuh jual, tren jangka pendek masih melemah. Disarankan tetap <b>JUAL / Cut Loss</b> untuk pengamanan modal, atau tunggu konfirmasi rebound sebelum masuk kembali."
+        else:
+            aksi_txt = "Disarankan segera melakukan <b>JUAL / Cut Loss</b> untuk mengamankan modal dari potensi penurunan lebih lanjut."
+    else: # TUNGGU
+        aksi_txt = "Disarankan untuk tetap <b>Wait & See (TUNGGU)</b> terlebih dahulu sampai indikator momentum memberikan sinyal pembalikan arah yang valid."
 
-    text = f"Tren besar saat ini {tren_besar} dengan jangka pendek {tren_pendek}. Kondisi RSI {rsi_desc}, {macd_desc} {vol_desc}. {kesimpulan}"
-    return text
+    analisis_lengkap = f"{tren_txt} {rsi_txt} {macd_txt} {vol_txt} 🎯 {aksi_txt}"
+    return analisis_lengkap
 
 def hitung_lot(modal, harga):
     if harga <= 0: return 0
