@@ -26,6 +26,11 @@ FEE_JUAL     = 0.0020
 HISTORY_FILE = os.path.join(os.path.dirname(__file__), "signal_history.json")
 ALERTS_FILE  = os.path.join(os.path.dirname(__file__), "telegram_alerts.json")
 
+# Telegram Bot configuration (Hardcoded & Hidden from UI)
+TG_TOKEN     = "8989322838:AAHdCXYAM-jR3NYX2Y3kt5hmqpMm3UINBMo"
+TG_CHAT_ID   = "6905606117"
+ENABLE_TG    = True
+
 # ── LQ45 + Saham Populer Multi-Sektor (130+ saham) ───────────────────────────
 LQ45_POPULER = [
     # === PERBANKAN ===
@@ -693,26 +698,6 @@ urut_opsi = st.sidebar.selectbox("Urutkan Berdasarkan:", [
     "Volume transaksi"
 ], index=0)
 
-# Telegram Bot configuration
-with st.sidebar.expander("🔔 Notifikasi Telegram"):
-    tg_token = st.text_input("Bot Token:", type="password", help="Dapatkan dari @BotFather di Telegram")
-    tg_chat_id = st.text_input("Chat ID:", help="ID Chat personal atau grup Anda")
-    enable_tg = st.checkbox("Aktifkan Notifikasi Bot", value=False)
-    
-    if st.button("🔌 Test Kirim Notifikasi", use_container_width=True):
-        if tg_token and tg_chat_id:
-            test_text = "<b>🔔 Scalping IHSG Bot</b>\n\nKoneksi berhasil! Bot siap mengirimkan sinyal trading real-time. 🚀"
-            url = f"https://api.telegram.org/bot{tg_token}/sendMessage"
-            data = urllib.parse.urlencode({"chat_id": tg_chat_id, "text": test_text, "parse_mode": "HTML"}).encode("utf-8")
-            try:
-                req = urllib.request.Request(url, data=data)
-                with urllib.request.urlopen(req, timeout=5) as response:
-                    st.success("✅ Pesan test berhasil dikirim!")
-            except Exception as e:
-                st.error(f"❌ Gagal kirim: {e}")
-        else:
-            st.warning("Mohon isi Token dan Chat ID terlebih dahulu.")
-
 manual_input = ""
 if "Manual" in mode_saham:
     manual_input = st.sidebar.text_area(
@@ -807,7 +792,7 @@ new_signals = record_signals(results, modal_per_saham, target_pct, sl_pct)
 if new_signals > 0:
     st.toast(f"✅ {new_signals} sinyal baru disimpan ke Signal History!", icon="📌")
 
-if enable_tg and tg_token and tg_chat_id:
+if ENABLE_TG and TG_TOKEN and TG_CHAT_ID:
     sent_alerts = load_sent_alerts()
     today_str = datetime.now(WIB).strftime("%Y-%m-%d")
     alerts_sent_count = 0
@@ -819,7 +804,7 @@ if enable_tg and tg_token and tg_chat_id:
             # Alert key unik per saham, timeframe, dan tipe sinyal harian
             alert_key = f"{today_str}_{r['symbol']}_{tf_option}_{r['sinyal']}"
             if alert_key not in sent_alerts:
-                success = send_telegram_alert(tg_token, tg_chat_id, r, tf_option, target_pct, sl_pct)
+                success = send_telegram_alert(TG_TOKEN, TG_CHAT_ID, r, tf_option, target_pct, sl_pct)
                 if success:
                     sent_alerts[alert_key] = True
                     alerts_sent_count += 1
