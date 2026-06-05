@@ -31,95 +31,70 @@ TG_TOKEN     = "8989322838:AAHdCXYAM-jR3NYX2Y3kt5hmqpMm3UINBMo"
 TG_CHAT_ID   = "6905606117"
 ENABLE_TG    = True
 
-# ── LQ45 + Saham Populer Multi-Sektor (~230 saham) ───────────────────────────
-LQ45_POPULER = [
-    # === PERBANKAN ===
-    "BBCA","BBRI","BMRI","BBTN","BJBR","BJTM","BNGA","NISP","PNBN",
-    "BACA","ARTO","MEGA","BSIM","AGRO","BANK","BBKP","BCAP","BMAS",
-    "BDMN","BTPS","BBHI","BBYB","BTPN","MASB","DNAR",
-    # === TELEKOMUNIKASI ===
-    "TLKM","ISAT","EXCL","FREN","TBIG","TOWR","WIFI","LINK",
-    # === PERTAMBANGAN, ENERGI & LOGAM ===
-    "ANTM","MDKA","PTBA","ADRO","INCO","TINS","ESSA","HRUM","ITMG","VALE",
-    "DEWA","BRMS","BULL","BNBR","BUMI","ELSA","BIPI","MEDC","COAL","DOID",
-    "SMMT","GEMS","RATU","MBAP","CITA","ADMR","MBMA","TOBA","INDY","PTRO",
-    "APEX","CUAN","PGEO","SGER","MITI",
-    # === PROPERTI & KONSTRUKSI ===
-    "BSDE","CTRA","PWON","SMRA","KIJA","LPKR","BKSL","MDLN","DMAS","MTLA",
-    "ASRI","JRPT","BEST","NZIA","NRCA","SSIA","BAPA","MKPI","DUTI","BIPP",
-    "WIKA","WSKT","PTPP","ADHI","TOTL","DILD","SMDM","PPRO","PPRE","ACST",
-    # === CONSUMER GOODS & RITEL ===
-    "UNVR","ICBP","INDF","GGRM","HMSP","MAPI","ACES","MIKA","HEAL","KLBF",
-    "SIDO","MYOR","CLEO","GOOD","ULTJ","DLTA","ROTI","AMRT","HERO","CSAP",
-    "RALS","LPPF","ERAA","MIDI","PZZA","FAST","MAPA","MAPB","MPPA","WOOD",
-    "BUKA","BELI","KBLI","WIPO","CAMP",
-    # === KESEHATAN & FARMASI ===
-    "KAEF","SOHO","TSPC","DVLA","MERK","PYFA","SILO","PRDA","SAME","DGNS",
-    "OMED","PEHA",
-    # === INFRASTRUKTUR & UTILITAS ===
-    "JSMR","PGAS","AKRA","SMGR","INTP","SMBR","WSBP","WTON","SMCB",
-    "KEEN","TGRA","POWR","META","BIRD","ASSA","HELI",
-    # === TEKNOLOGI & DIGITAL ===
-    "GOTO","EMTK","MNCN","SCMA","FILM","MTDL","MCAS","AXIO","DMMX",
-    "MSIN","BOLA","IPTV","BABP","BHIT","KPIG",
-    # === OTOMOTIF ===
-    "ASII","AUTO","IMAS","SMSM","UNTR","HEXA","GJTL","INDS","DRMA","BOLT",
-    # === SHIPPING & LOGISTIK ===
-    "MBSS","HITS","SMDR","TMAS","PSSI","HAIS","NELI","PORT","ALAS","SDMU",
-    # === AGRIBISNIS ===
-    "AALI","LSIP","SSMS","SGRO","TAPG","BWPT","MGRO","SIMP","ANDI","DSNG",
-    # === KEUANGAN NON-BANK ===
-    "ADMF","BFIN","WOMF","MFIN","IMJS","BPFI","CFIN","APIC",
-    # === KIMIA & MATERIAL DASAR ===
-    "BRPT","TPIA","MARK","BUDI","DPNS","EKAD","ETWA","AGII","UNIC","INCI",
-    # === HOT STOCKS & MOMENTUM ===
-    "BREN","AMMN","SRTG","HRTA","SRAJ","PANI",
+# ── ALL_SAHAM — Watchlist Gabungan Emiten IHSG (505 Saham) ────────────────────
+ALL_SAHAM = [
+    # === A - B ===
+    "AALI", "ABMM", "ACES", "ACST", "ADCP", "ADES", "ADHI", "ADMF", "ADMR", "ADRO",
+    "AGII", "AGRO", "AGRS", "AIMS", "AISA", "AKRA", "ALAS", "ALKA", "ALTO", "AMAR",
+    "AMMN", "AMRT", "ANDI", "ANTM", "APEX", "APIC", "APLI", "APLN", "ARCI", "ARKA",
+    "ARTO", "ASBI", "ASGR", "ASII", "ASJT", "ASMI", "ASPI", "ASRI", "ASSA", "ATIC",
+    "AUTO", "AVIA", "AWAN", "AXIO", "AYAM", "BABP", "BACA", "BAJA", "BALI", "BANK",
+    "BAPA", "BATA", "BAYU", "BBCA", "BBHI", "BBKP", "BBLD", "BBRI", "BBTN", "BBYB",
+    "BCAP", "BCIC", "BCIP", "BDMN", "BEBS", "BELI", "BESS", "BEST", "BFIN", "BGTG",
+    "BHIT", "BIKA", "BINA", "BIPI", "BIPP", "BIRD", "BISI", "BJBR", "BJTM", "BKDP",
+    "BKSL", "BMAS", "BMHS", "BMRI", "BMTR", "BNBR", "BNGA", "BNII", "BNLI", "BOLA",
+    "BOLT", "BPFI", "BPII", "BPTR", "BRAM", "BREN", "BRMS", "BRPT", "BSDE", "BSIM",
+    "BSML", "BTEK", "BTEL", "BTON", "BTPN", "BTPS", "BUDI", "BUKA", "BUKK", "BULL",
+    "BUMI", "BWPT", "BYAN",
+    # === C - F ===
+    "CAMP", "CARE", "CARS", "CASA", "CASS", "CEKA", "CENT", "CFIN", "CINT", "CITA",
+    "CLAY", "CLEO", "CMNP", "CNTX", "COAL", "COCO", "CPIN", "CPRO", "CSAP", "CSIS",
+    "CTBN", "CTRA", "CTTH", "CUAN", "DART", "DEFI", "DEWA", "DFAM", "DGIK", "DGNS",
+    "DILD", "DIVA", "DKFT", "DLTA", "DMAS", "DMMX", "DMND", "DNAR", "DNET", "DOID",
+    "DPNS", "DPUM", "DRMA", "DSFI", "DSNG", "DUTI", "DVLA", "DYAN", "EAST", "EDGE",
+    "EKAD", "ELSA", "ELTY", "EMTK", "ENRG", "ENVY", "ERAA", "ERTX", "ESIP", "ESSA",
+    "ESTI", "ETWA", "EXCL", "FAST", "FILM", "FMII", "FORZ", "FREN",
+    # === G - K ===
+    "GDST", "GDYR", "GEMA", "GEMS", "GGRM", "GIAA", "GJTL", "GLOB", "GMFI", "GMTD",
+    "GOLD", "GOOD", "GOTO", "GPRA", "GSMF", "GTBO", "GWSA", "HAIS", "HDFA", "HDIT",
+    "HEAL", "HELI", "HERO", "HEXA", "HITS", "HMSP", "HOKI", "HOMI", "HOPE", "HOTL",
+    "HRTA", "HRUM", "IATA", "IBST", "ICBP", "IKAN", "IKBI", "IMAS", "IMJS", "INAF",
+    "INCF", "INCI", "INCO", "INDF", "INDS", "INDX", "INDY", "INKP", "INPC", "INPS",
+    "INRU", "INTP", "IPCC", "IPCM", "IPOL", "IPTV", "IRRA", "ISAP", "ISAT", "ISSP",
+    "ITMA", "ITMG", "JAWA", "JECC", "JIHD", "JKON", "JPFA", "JRPT", "JSMR", "JSPT",
+    "JTPE", "KAEF", "KARW", "KAYU", "KBLI", "KBLM", "KBRI", "KDSI", "KEEN", "KEJU",
+    "KIAS", "KIJA", "KIOS", "KKGI", "KLBF", "KMTR", "KOBX", "KOIN", "KOTA", "KPIG",
+    "KRAH", "KRAS", "KREN",
+    # === L - R ===
+    "LINK", "LION", "LMAS", "LPCK", "LPKR", "LPLI", "LPPF", "LRNA", "LSIP", "LTLS",
+    "LUCK", "MAIN", "MAMI", "MAPA", "MAPB", "MAPI", "MARI", "MARK", "MASB", "MAYA",
+    "MBAP", "MBMA", "MBSS", "MCAS", "MCOR", "MDKA", "MDKI", "MDLN", "MEDC", "MEGA",
+    "MERK", "META", "MFIN", "MFMI", "MGRO", "MIDI", "MIKA", "MITI", "MKPI", "MNCN",
+    "MPPA", "MSIN", "MSKY", "MTDL", "MTFN", "MTLA", "MTPS", "MTSM", "MYOR", "MYRX",
+    "MYTX", "NASA", "NELI", "NFCX", "NICL", "NIKL", "NIPS", "NISP", "NOBU", "NRCA",
+    "NZIA", "OASA", "OKAS", "OMED", "OMRE", "PADI", "PALM", "PANI", "PANR", "PANS",
+    "PBID", "PCAR", "PDES", "PEGE", "PEHA", "PGAS", "PGEO", "PGLI", "PICO", "PJAA",
+    "PLIN", "PMMP", "PNBN", "PNBS", "PNIN", "PNLF", "PNSE", "POLA", "POLI", "PORT",
+    "POWR", "PPRE", "PPRO", "PRAS", "PRDA", "PSAB", "PSDN", "PSSI", "PTBA", "PTDU",
+    "PTIS", "PTPP", "PTRO", "PTSN", "PTSP", "PUDP", "PWON", "PYFA", "PZZA", "RALS",
+    "RAMA", "RANC", "RATU", "RBMS", "RDTX", "RELI", "RICY", "RIGS", "RISE", "RMKE",
+    "RODA", "ROTI", "RUIS",
+    # === S - Z ===
+    "SAFE", "SAME", "SAMF", "SCCO", "SCMA", "SCPI", "SDMU", "SDPC", "SDRA", "SGER",
+    "SGRO", "SHID", "SHIP", "SIDO", "SILO", "SIMP", "SIPD", "SKYB", "SLIS", "SMBR",
+    "SMCB", "SMDM", "SMDR", "SMGR", "SMKL", "SMMT", "SMRA", "SMSM", "SOCI", "SOHO",
+    "SONA", "SPTO", "SRAJ", "SRIL", "SRTG", "SSIA", "SSMS", "SSTM", "SULI", "SUPR",
+    "TALF", "TAPG", "TAXI", "TBIG", "TBLA", "TBMS", "TCPI", "TEBE", "TELE", "TFAS",
+    "TFCO", "TGRA", "TIFA", "TINS", "TIRT", "TKIM", "TLKM", "TMAS", "TMPO", "TOBA",
+    "TOTL", "TOWR", "TPIA", "TPMA", "TRIL", "TRIM", "TRIN", "TRIS", "TRJA", "TRST",
+    "TRUK", "TSPC", "TURI", "UCID", "ULTJ", "UNIC", "UNSP", "UNTR", "UNVR", "URBN",
+    "VALE", "VICO", "VRNA", "WAHA", "WEGE", "WEHA", "WICO", "WIFI", "WIIM", "WIKA",
+    "WINS", "WIPO", "WOMF", "WOOD", "WOWS", "WSBP", "WSKT", "WTON", "YPAS", "YULE",
+    "ZBRA"
 ]
 # Hapus duplikat, jaga urutan
 _seen = set()
-LQ45_POPULER = [x for x in LQ45_POPULER if not (x in _seen or _seen.add(x))]
-
-# ── BSJP WATCHLIST — Saham aktif Sesi 2 & cocok overnight BSJP ───────────────
-BSJP_WATCHLIST = [
-    # === PERBANKAN — likuid & banyak gerak sesi 2 ===
-    "BBCA","BBRI","BMRI","BBTN","BJBR","BJTM","BNGA","NISP","PNBN",
-    "BACA","ARTO","MEGA","BCAP","BBKP","BDMN","BTPS","BBHI","BBYB",
-    # === TELEKOMUNIKASI ===
-    "TLKM","ISAT","EXCL","FREN","TBIG","TOWR","WIFI",
-    # === PERTAMBANGAN & ENERGI — volatilitas tinggi, favorit BSJP ===
-    "ANTM","MDKA","PTBA","ADRO","INCO","TINS","ESSA","HRUM","ITMG","VALE",
-    "DEWA","BRMS","BULL","BNBR","BUMI","ELSA","BIPI","MEDC","COAL","DOID",
-    "SMMT","GEMS","RATU","MBAP","CITA","ADMR","MBMA","TOBA","INDY","PTRO",
-    "CUAN","PGEO","SGER",
-    # === PROPERTI & KONSTRUKSI — seringkali pump sesi 2 & BSJP favorit ===
-    "BSDE","CTRA","PWON","SMRA","KIJA","LPKR","BKSL","MDLN","DMAS","MTLA",
-    "ASRI","JRPT","BEST","NZIA","NRCA","SSIA","DUTI","BIPP","BAPA","PPRE",
-    "WIKA","WSKT","PTPP","ADHI","TOTL","DILD",
-    # === CONSUMER GOODS & RITEL ===
-    "ICBP","INDF","GGRM","HMSP","MAPI","ACES","MIKA","HEAL","UNVR","KLBF",
-    "SIDO","MYOR","CLEO","GOOD","ULTJ","AMRT","RALS","LPPF","ERAA","MIDI",
-    "BUKA","BELI","MPPA",
-    # === INFRASTRUKTUR & UTILITAS ===
-    "JSMR","PGAS","AKRA","SMGR","INTP","WTON","ACST","BIRD","ASSA",
-    # === TEKNOLOGI & DIGITAL & MEDIA ===
-    "GOTO","EMTK","MNCN","SCMA","FILM","MTDL","MCAS","WIFI","AXIO","DMMX",
-    "MSIN","BOLA",
-    # === OTOMOTIF ===
-    "ASII","AUTO","UNTR","SMSM","HEXA","DRMA",
-    # === AGRIBISNIS ===
-    "AALI","LSIP","SSMS","SGRO","TAPG","MGRO","DSNG",
-    # === KESEHATAN ===
-    "KAEF","SOHO","TSPC","DVLA","HEAL","MIKA","KLBF","SILO","SAME",
-    # === KIMIA & MATERIAL ===
-    "BRPT","TPIA","MARK","DPNS","AGII",
-    # === SHIPPING ===
-    "MBSS","HITS","SMDR","TMAS","PSSI","HAIS","NELI",
-    # === HOT STOCKS & MOMENTUM ===
-    "NZIA","BREN","AMMN","SRTG","HRTA","GOTO","MDKA","BBKP",
-    "SRAJ","COAL","ESSA","BIPI","PANI",
-]
-_seen2 = set()
-BSJP_WATCHLIST = [x for x in BSJP_WATCHLIST if not (x in _seen2 or _seen2.add(x))]
+ALL_SAHAM = [x for x in ALL_SAHAM if not (x in _seen or _seen.add(x))]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CSS
@@ -717,25 +692,14 @@ def tentukan_sinyal(ind, harga, prev, sesi_status, strategi="🟢 BPJS Sesi 1 (P
 # ─────────────────────────────────────────────────────────────────────────────
 # SIDEBAR
 # ─────────────────────────────────────────────────────────────────────────────
+# 🔄 Refresh Data (Tombol paling atas)
+if st.sidebar.button("🔄 Refresh Data", use_container_width=True):
+    st.cache_data.clear()
+    st.rerun()
+
 st.sidebar.markdown("## ⚙️ Pengaturan")
 
-mode_saham = st.sidebar.radio("📊 Sumber Saham:", [
-    "📊 LQ45 + Populer (130 saham)",
-    "🎯 BSJP Watchlist Sesi 2 ★",
-    "✏️ Manual"
-], index=0)
-
-modal_per_saham = st.sidebar.number_input(
-    "💰 Modal per Saham (Rp):",
-    min_value=100_000, max_value=20_000_000,
-    value=500_000, step=50_000, format="%d"
-)
-target_pct = st.sidebar.slider("🎯 Target Profit (%)", 2.0, 20.0, 5.0, 0.5)
-sl_pct     = st.sidebar.slider("🛑 Stop Loss (%)",   1.0, 10.0, 3.0, 0.5)
-max_sahams  = st.sidebar.slider("📋 Jumlah Saham",     5,   150,  50)
-
-# BSJP Strategy and Parameters Expander
-# Pemilih Strategi Baru (Clean & Simple)
+# 📊 Strategi Analisis
 st.sidebar.markdown("### 📊 Strategi Analisis")
 strategi = st.sidebar.radio(
     "Pilih Metode Analisis:",
@@ -748,17 +712,7 @@ strategi = st.sidebar.radio(
     index=2  # Default: BSJP
 )
 
-# Password Access Key for Developer Mode (Hides Formulas from Public)
-st.sidebar.markdown("---")
-access_key = st.sidebar.text_input(
-    "🔑 Kode Akses Parameter (Private):",
-    type="password",
-    help="Masukkan kode akses Anda untuk membuka detail rumus indikator (default disembunyikan untuk umum)."
-)
-is_owner = (access_key == "rafifcuan")
-
 # Info Box Strategi (Clean & Simple)
-st.sidebar.markdown("---")
 if strategi == "🟢 BPJS Sesi 1 (Pagi)":
     st.sidebar.info("💡 **BPJS Sesi 1**: Skrining saham momentum pagi hari (09:00 - 11:30 WIB) untuk scalping cepat dengan target profit 5-10%.")
 elif strategi == "🟡 BPJS Sesi 2 (Siang)":
@@ -768,36 +722,10 @@ elif strategi == "🟣 BSJP (Beli Sore)":
 elif strategi == "🔥 ARA Hunter":
     st.sidebar.info("💡 **ARA Hunter**: Skrining saham ber-volume masif yang sedang menuju/berpotensi mengunci kenaikan tertinggi (ARA).")
 
-# Multi-Timeframe Configuration
-tf_option = st.sidebar.selectbox("⏱️ Timeframe Analisis:", ["1d", "1h", "15m", "5m"], index=0)
-
-tf_mapping = {
-    "5m":  {"period": "2d",  "interval": "5m"},
-    "15m": {"period": "5d",  "interval": "15m"},
-    "1h":  {"period": "1mo", "interval": "1h"},
-    "1d":  {"period": "6mo", "interval": "1d"}
-}
-tf_config = tf_mapping[tf_option]
-
-tv_interval = st.sidebar.select_slider(
-    "📈 Timeframe TradingView:",
-    options=["1", "5", "15", "30", "60", "1D", "1W"],
-    value="1D"
-)
-
-# Sorting and Filtering
+# 🔍 Filter & Sortir
 st.sidebar.markdown("### 🔍 Filter & Sortir")
 filter_sinyal = st.sidebar.checkbox("Hanya Sinyal BELI / BSJP", value=False)
 min_confidence = st.sidebar.slider("🔥 Min. Confidence (%)", 10, 100, 30)
-min_value_transaksi = st.sidebar.slider(
-    "💰 Min. Transaksi Harian (Miliar Rp)",
-    min_value=0.1,
-    max_value=50.0,
-    value=2.0,
-    step=0.5,
-    help="Menyaring saham-saham yang sepi/tidak likuid agar terhindar dari risiko tidak bisa jualan (default: 2 Miliar Rp)."
-)
-
 urut_opsi = st.sidebar.selectbox("Urutkan Berdasarkan:", [
     "Sinyal Teratas (Default)",
     "Confidence tertinggi",
@@ -806,16 +734,66 @@ urut_opsi = st.sidebar.selectbox("Urutkan Berdasarkan:", [
     "Volume transaksi"
 ], index=0)
 
-manual_input = ""
-if "Manual" in mode_saham:
-    manual_input = st.sidebar.text_area(
-        "Kode saham (pisahkan koma):",
-        "BBCA,BBRI,TLKM,GOTO,BREN,ASII,MDKA,AMMN,ANTM,BMRI"
+# 📋 Jumlah Saham (Max 505 sesuai total ALL_SAHAM)
+max_sahams = st.sidebar.slider("📋 Jumlah Saham", 5, 505, 50)
+
+# ⏱️ Expander Timeframe (Lanjutan)
+with st.sidebar.expander("⏱️ Pengaturan Lilin & Grafik (Lanjutan)", expanded=False):
+    st.markdown("""
+    * **Timeframe Analisis (Target):** Menentukan periode grafik lilin untuk perhitungan sinyal teknis.
+    * **Timeframe TradingView:** Menentukan interval lilin default pada grafik interaktif kartu saham.
+    """)
+    tf_display = st.selectbox(
+        "⏱️ Timeframe Analisis (Target):",
+        [
+            "⏱️ Harian - 1 Hari (Rekomendasi BSJP & ARA Hunter)",
+            "⏱️ Menengah - 1 Jam (Rekomendasi Swing Pendek)",
+            "⏱️ Scalping - 15 Menit (Rekomendasi Utama BPJS Sesi 1 & 2)",
+            "⏱️ Scalping Cepat - 5 Menit (Scalping Sangat Agresif)"
+        ],
+        index=0
+    )
+    
+    tf_mapping = {
+        "⏱️ Harian - 1 Hari (Rekomendasi BSJP & ARA Hunter)": "1d",
+        "⏱️ Menengah - 1 Jam (Rekomendasi Swing Pendek)": "1h",
+        "⏱️ Scalping - 15 Menit (Rekomendasi Utama BPJS Sesi 1 & 2)": "15m",
+        "⏱️ Scalping Cepat - 5 Menit (Scalping Sangat Agresif)": "5m"
+    }
+    tf_option = tf_mapping[tf_display]
+    
+    tf_config_mapping = {
+        "5m":  {"period": "2d",  "interval": "5m"},
+        "15m": {"period": "5d",  "interval": "15m"},
+        "1h":  {"period": "1mo", "interval": "1h"},
+        "1d":  {"period": "6mo", "interval": "1d"}
+    }
+    tf_config = tf_config_mapping[tf_option]
+    
+    tv_interval = st.select_slider(
+        "📈 Timeframe TradingView:",
+        options=["1", "5", "15", "30", "60", "1D", "1W"],
+        value="1D"
     )
 
-if st.sidebar.button("🔄 Refresh Data", use_container_width=True):
-    st.cache_data.clear()
-    st.rerun()
+# 💰 Expander Keuangan (Money Management)
+with st.sidebar.expander("💰 Pengaturan Keuangan", expanded=False):
+    modal_per_saham = st.number_input(
+        "💰 Modal per Saham (Rp):",
+        min_value=100_000, max_value=20_000_000,
+        value=500_000, step=50_000, format="%d"
+    )
+    target_pct = st.slider("🎯 Target Profit (%)", 2.0, 20.0, 5.0, 0.5)
+    sl_pct     = st.slider("🛑 Stop Loss (%)",   1.0, 10.0, 3.0, 0.5)
+
+# 🔑 Kode Akses Parameter (Private - Paling bawah)
+st.sidebar.markdown("---")
+access_key = st.sidebar.text_input(
+    "🔑 Kode Akses Parameter (Private):",
+    type="password",
+    help="Masukkan kode akses Anda untuk membuka detail rumus indikator (default disembunyikan untuk umum)."
+)
+is_owner = (access_key == "rafifcuan")
 
 st.sidebar.markdown("""
 **📊 Sinyal:**
@@ -842,12 +820,7 @@ st.markdown("""
 # AMBIL DAFTAR SAHAM
 # ─────────────────────────────────────────────────────────────────────────────
 with st.spinner("📡 Menyiapkan daftar saham..."):
-    if "Manual" in mode_saham:
-        symbols = [s.strip().upper() for s in manual_input.split(",") if s.strip()]
-    elif "BSJP" in mode_saham:
-        symbols = BSJP_WATCHLIST[:max_sahams]
-    else:
-        symbols = LQ45_POPULER[:max_sahams]
+    symbols = ALL_SAHAM[:max_sahams]
 
 symbols = symbols[:max_sahams]
 
