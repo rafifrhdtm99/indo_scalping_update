@@ -733,18 +733,47 @@ def render_kartu(r):
 
     alasan_pills = "".join([f'<span class="ind-pill">{a}</span>' for a in r["alasan"]])
 
-      kalkulasi_html = ""
+      def render_kartu(r):
+    sym    = r["symbol"]
+    harga  = r["harga"]
+    chg    = r["chg"]
+    sinyal = r["sinyal"]
+    lot    = r["lot"]
+    k      = r["k"]
+    ind    = r["ind"]
+
+    if sinyal=="BELI":   css,tag_css,tag_txt = "card-beli",  "tag-green",  "🟢 BELI – BPJS"
+    elif sinyal=="BSJP": css,tag_css,tag_txt = "card-bsjp",  "tag-purple", "🟣 BELI SORE JUAL PAGI"
+    elif sinyal=="JUAL": css,tag_css,tag_txt = "card-jual",  "tag-red",    "🔴 JUAL / CUT LOSS"
+    else:                css,tag_css,tag_txt = "card-tunggu","tag-gray",   "⏳ TUNGGU"
+
+    chg_col  = "#22c55e" if chg>=0 else "#ef4444"
+    chg_sign = "+" if chg>=0 else ""
+    rsi      = ind.get("RSI",0)
+    ema9     = ind.get("EMA9",0)
+    ema21    = ind.get("EMA21",0)
+    ema50    = ind.get("EMA50",0)
+    mh       = ind.get("MACD_hist",0)
+    rsi_col  = "#ef4444" if rsi>70 else ("#22c55e" if rsi<40 else "#f59e0b")
+    
+    analisis = buat_analisis_singkat(ind, harga, sinyal, chg)
+    confidence = r.get("confidence", 50)
+    conf_label = r.get("conf_label", "Cukup")
+    conf_color = r.get("conf_color", "#cbd5e1")
+
+    alasan_pills = "".join([f'<span class="ind-pill">{a}</span>' for a in r["alasan"]])
+
+    kalkulasi_html = ""
     if k:
-        kalkulasi_html = (
-            f'<div class="kalkulator">'
-            f'💼 <b>Lot:</b> {lot} lot &nbsp;|&nbsp; '
-            f'💰 <b>Modal:</b> Rp {k["modal"]:,.0f}<br>'
-            f'🎯 <b>Target:</b> Rp {snap_fraksi(k["ht"]):,} &nbsp;|&nbsp; '
-            f'🛑 <b>Stop Loss:</b> Rp {snap_fraksi(k["hsl"]):,}<br>'
-            f'✅ <b>Est. Profit:</b> <span style="color:#22c55e">Rp {k["profit"]:+,.0f}</span> &nbsp;|&nbsp; '
-            f'❌ <b>Est. Rugi:</b> <span style="color:#ef4444">Rp {k["rugi"]:+,.0f}</span>'
-            f'</div>'
-        )
+        kalkulasi_html = f"""
+        <div class="kalkulator">
+            💼 <b>Lot:</b> {lot} lot &nbsp;|&nbsp;
+            💰 <b>Modal:</b> Rp {k['modal']:,.0f}<br>
+            🎯 <b>Target:</b> Rp {snap_fraksi(k['ht']):,} &nbsp;|&nbsp;
+            🛑 <b>Stop Loss:</b> Rp {snap_fraksi(k['hsl']):,}<br>
+            ✅ <b>Est. Profit:</b> <span style="color:#22c55e">Rp {k['profit']:+,.0f}</span> &nbsp;|&nbsp;
+            ❌ <b>Est. Rugi:</b> <span style="color:#ef4444">Rp {k['rugi']:+,.0f}</span>
+        </div>"""
 
     st.markdown(f"""
     <div class="{css}">
