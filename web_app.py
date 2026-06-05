@@ -735,47 +735,38 @@ sl_pct     = st.sidebar.slider("🛑 Stop Loss (%)",   1.0, 10.0, 3.0, 0.5)
 max_sahams  = st.sidebar.slider("📋 Jumlah Saham",     5,   150,  50)
 
 # BSJP Strategy and Parameters Expander
-with st.sidebar.expander("🔥 Parameter BSJP V1 Setup", expanded=True):
-    bsjp_strategy = st.selectbox(
-        "Strategi BSJP:",
-        ["BSJP V1 (Rekomendasi Trader)", "BSJP Klasik (Default)"],
-        index=0
-    )
-    limit_harga_bsjp = st.checkbox(
-        "Batasi Harga Saham (Rp 50 - 200)",
-        value=True,
-        help="Hanya merekomendasikan saham di rentang harga Rp 50 – Rp 200 untuk BSJP V1."
-    )
-    min_vol_mult = st.slider(
-        "Min. Volume Multiplier (x MA20)",
-        1.0, 3.0, 1.2, 0.1,
-        help="Volume hari ini minimal X kali lebih besar dari rata-rata volume 20 hari."
-    )
-    bsjp_min_val_transaksi = st.slider(
-        "Min. Nilai Transaksi Hari Ini (Miliar Rp)",
-        1.0, 100.0, 20.0, 5.0,
-        help="Memastikan nilai transaksi (Harga * Volume) hari ini di atas X Miliar Rupiah."
-    )
-    min_chg_today = st.slider(
-        "Min. Kenaikan Hari Ini (%)",
-        1.0, 15.0, 5.0, 0.5,
-        help="Kenaikan harga minimal hari ini agar saham dianggap memiliki momentum."
-    )
-    min_vol_ma20 = st.slider(
-        "Min. Rata-rata Volume MA20 (Juta Lembar)",
-        0.1, 10.0, 1.0, 0.5,
-        help="Rata-rata volume transaksi 20 hari minimal X juta lembar saham (10.000 lot)."
-    )
-    bypass_jam_bsjp = st.checkbox(
-        "Bypass Jam Operasional (Scan Kapan Saja)",
-        value=True,
-        help="Bypass batasan jam 14:30 - 15:50 WIB sehingga Anda bisa melihat sinyal BSJP kapan saja."
-    )
-    filter_ma_trend = st.checkbox(
-        "Filter MA Tren (MA5 >= MA20 >= MA50)",
-        value=True,
-        help="Memastikan saham sedang dalam tren naik jangka pendek dan menengah yang sehat."
-    )
+# Pemilih Strategi Baru (Clean & Simple)
+st.sidebar.markdown("### 📊 Strategi Analisis")
+strategi = st.sidebar.radio(
+    "Pilih Metode Analisis:",
+    [
+        "🟢 BPJS Sesi 1 (Pagi)",
+        "🟡 BPJS Sesi 2 (Siang)",
+        "🟣 BSJP (Beli Sore)",
+        "🔥 ARA Hunter"
+    ],
+    index=2  # Default: BSJP
+)
+
+# Password Access Key for Developer Mode (Hides Formulas from Public)
+st.sidebar.markdown("---")
+access_key = st.sidebar.text_input(
+    "🔑 Kode Akses Parameter (Private):",
+    type="password",
+    help="Masukkan kode akses Anda untuk membuka detail rumus indikator (default disembunyikan untuk umum)."
+)
+is_owner = (access_key == "rafifcuan")
+
+# Info Box Strategi (Clean & Simple)
+st.sidebar.markdown("---")
+if strategi == "🟢 BPJS Sesi 1 (Pagi)":
+    st.sidebar.info("💡 **BPJS Sesi 1**: Skrining saham momentum pagi hari (09:00 - 11:30 WIB) untuk scalping cepat dengan target profit 5-10%.")
+elif strategi == "🟡 BPJS Sesi 2 (Siang)":
+    st.sidebar.info("💡 **BPJS Sesi 2**: Skrining setelah istirahat siang (13:30 - 15:50 WIB) untuk scalping kelanjutan tren.")
+elif strategi == "🟣 BSJP (Beli Sore)":
+    st.sidebar.info("💡 **BSJP**: Skrining sore hari menjelang tutup bursa untuk menangkap saham yang diakumulasi dan berpotensi naik besok pagi.")
+elif strategi == "🔥 ARA Hunter":
+    st.sidebar.info("💡 **ARA Hunter**: Skrining saham ber-volume masif yang sedang menuju/berpotensi mengunci kenaikan tertinggi (ARA).")
 
 # Multi-Timeframe Configuration
 tf_option = st.sidebar.selectbox("⏱️ Timeframe Analisis:", ["1d", "1h", "15m", "5m"], index=0)
@@ -895,16 +886,9 @@ for i, sym in enumerate(symbols):
     chg   = (harga - prev) / prev * 100 if prev > 0 else 0
     sinyal, alasan, bsjp_metrics = tentukan_sinyal(
         ind, harga, prev, sesi_status,
-        bsjp_strategy=bsjp_strategy,
-        limit_harga_bsjp=limit_harga_bsjp,
-        min_vol_mult=min_vol_mult,
-        min_val_transaksi=bsjp_min_val_transaksi,
-        min_chg_today=min_chg_today,
-        min_vol_ma20=min_vol_ma20,
-        bypass_jam_bsjp=bypass_jam_bsjp,
-        filter_ma_trend=filter_ma_trend
+        strategi=strategi
     )
-    confidence, conf_label, conf_color = hitung_confidence(ind, harga, sinyal, bsjp_metrics, bsjp_strategy)
+    confidence, conf_label, conf_color = hitung_confidence(ind, harga, sinyal, bsjp_metrics, strategi)
     lot = hitung_lot(modal_per_saham, harga)
     k   = kalkulator(harga, lot, target_pct, sl_pct)
     
