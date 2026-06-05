@@ -290,6 +290,16 @@ def snap_fraksi(h):
     elif h < 5000: return round(h/25)*25
     else:          return round(h/50)*50
 
+def get_ara_limit(price):
+    if price < 50:
+        return 10.0  # Papan Akselerasi / FCA
+    elif price <= 200:
+        return 35.0
+    elif price <= 5000:
+        return 25.0
+    else:
+        return 20.0
+
 # ─────────────────────────────────────────────────────────────────────────────
 # SIGNAL HISTORY — Simpan, Load, Evaluasi
 # ─────────────────────────────────────────────────────────────────────────────
@@ -429,7 +439,7 @@ def send_telegram_alert(token, chat_id, r, tf, target_pct, sl_pct):
     conf_label = r["conf_label"]
     
     sig_emoji = "🟢" if sinyal == "BELI" else "🟣"
-    sig_name = "BELI (BPJS)" if sinyal == "BELI" else "BELI SORE (BSJP)"
+    sig_name = "BELI (BPJS)" if sinyal == "BELI" else ("BELI SORE (BSJP V1)" if r.get("bsjp_metrics") else "BELI SORE (BSJP)")
     
     target_price = snap_fraksi(k["ht"]) if k else harga
     sl_price = snap_fraksi(k["hsl"]) if k else harga
@@ -466,49 +476,54 @@ def send_telegram_alert(token, chat_id, r, tf, target_pct, sl_pct):
 # ─────────────────────────────────────────────────────────────────────────────
 # FUNGSI ANALISIS & SINYAL
 # ─────────────────────────────────────────────────────────────────────────────
-def hitung_confidence(ind, harga, sinyal):
+def hitung_confidence(ind, harga, sinyal, bsjp_metrics=None, bsjp_strategy="BSJP Klasik"):
     if ind is None:
         return 25, "❓ Data kurang", "#6b7280"
-    rsi    = ind.get("RSI", 50)
-    ema9   = ind.get("EMA9", harga)
-    ema21  = ind.get("EMA21", harga)
-    ema50  = ind.get("EMA50", harga)
-    mh     = ind.get("MACD_hist", 0)
-    macd   = ind.get("MACD", 0)
-    vol    = ind.get("volume", 0)
-    volma  = ind.get("vol_ma20", vol or 1)
-    score  = 0
-    if sinyal in ("BELI", "BSJP"):
-        if   rsi < 30: score += 25
-        elif rsi < 40: score += 20
-        elif rsi < 50: score += 14
-        elif rsi < 55: score += 7
-        if ema9 > ema21:
-            margin = (ema9 - ema21) / ema21 * 100
-            score += min(20, int(10 + margin * 5))
-        if harga > ema50: score += 15
-        elif harga > ema50 * 0.98: score += 7
-        if mh > 0:
-            score += 10
-            if macd > 0: score += 10
-        if volma > 0:
-            ratio = vol / volma
-            if   ratio >= 2.0: score += 20
-            elif ratio >= 1.5: score += 15
-            elif ratio >= 1.2: score += 10
-            elif ratio >= 1.0: score += 5
-    elif sinyal == "JUAL":
-        if   rsi > 80: score += 25
-        elif rsi > 70: score += 18
-        elif rsi > 60: score += 8
-        if ema9 < ema21:
-            margin = (ema21 - ema9) / ema21 * 100
-            score += min(20, int(10 + margin * 5))
-        if harga < ema50: score += 15
-        if mh < 0: score += 20
-        if vol > volma * 1.2: score += 20
+    if sinyal == "BSJP" and bsjp_strategy == "BSJP V1 (Rekomendasi Trader)" and bsjp_metrics:
+        total_criteria = len(bsjp_metrics)
+        met_criteria = sum(1 for v in bsjp_metrics.values() if v)
+        score = int(met_criteria / total_criteria * 100)
     else:
-        score = max(20, min(45, int(50 - abs(rsi - 50))))
+        rsi    = ind.get("RSI", 50)
+        ema9   = ind.get("EMA9", harga)
+        ema21  = ind.get("EMA21", harga)
+        ema50  = ind.get("EMA50", harga)
+        mh     = ind.get("MACD_hist", 0)
+        macd   = ind.get("MACD", 0)
+        vol    = ind.get("volume", 0)
+        volma  = ind.get("vol_ma20", vol or 1)
+        score  = 0
+        if sinyal in ("BELI", "BSJP"):
+            if   rsi < 30: score += 25
+            elif rsi < 40: score += 20
+            elif rsi < 50: score += 14
+            elif rsi < 55: score += 7
+            if ema9 > ema21:
+                margin = (ema9 - ema21) / ema21 * 100
+                score += min(20, int(10 + margin * 5))
+            if harga > ema50: score += 15
+            elif harga > ema50 * 0.98: score += 7
+            if mh > 0:
+                score += 10
+                if macd > 0: score += 10
+            if volma > 0:
+                ratio = vol / volma
+                if   ratio >= 2.0: score += 20
+                elif ratio >= 1.5: score += 15
+                elif ratio >= 1.2: score += 10
+                elif ratio >= 1.0: score += 5
+        elif sinyal == "JUAL":
+            if   rsi > 80: score += 25
+            elif rsi > 70: score += 18
+            elif rsi > 60: score += 8
+            if ema9 < ema21:
+                margin = (ema21 - ema9) / ema21 * 100
+                score += min(20, int(10 + margin * 5))
+            if harga < ema50: score += 15
+            if mh < 0: score += 20
+            if vol > volma * 1.2: score += 20
+        else:
+            score = max(20, min(45, int(50 - abs(rsi - 50))))
     score = max(10, min(100, score))
     if   score >= 80: label, color = "🔥 Sangat Kuat",  "#22c55e"
     elif score >= 65: label, color = "💪 Kuat",          "#84cc16"
@@ -517,9 +532,26 @@ def hitung_confidence(ind, harga, sinyal):
     else:             label, color = "❌ Sangat Lemah",   "#ef4444"
     return score, label, color
 
-def buat_analisis_singkat(ind, harga, sinyal, chg):
+def buat_analisis_singkat(ind, harga, sinyal, chg, bsjp_metrics=None, bsjp_strategy="BSJP Klasik"):
     if ind is None or not ind:
         return "Data historis tidak mencukupi untuk melakukan analisis teknikal."
+    if bsjp_strategy == "BSJP V1 (Rekomendasi Trader)" and bsjp_metrics:
+        met_list = [k for k, v in bsjp_metrics.items() if v]
+        unmet_list = [k for k, v in bsjp_metrics.items() if not v]
+        if sinyal == "BSJP":
+            return (
+                f"🌟 Saham lolos **seluruh kriteria BSJP V1**! Kenaikan {chg:.1f}% sehat, "
+                f"volume memuncak {ind.get('volume',0)/ind.get('vol_ma20',1):.1f}x dari rata-rata MA20, "
+                f"nilai transaksi Rp {harga * ind.get('volume',0)/1_000_000_000:.1f} Miliar, "
+                f"serta tren MA5 >= MA20 >= MA50 kokoh."
+            )
+        else:
+            missing_str = ", ".join(unmet_list)
+            return (
+                f"⏳ Belum memenuhi syarat BSJP V1. "
+                f"Kriteria terpenuhi: {', '.join(met_list)}. "
+                f"Kriteria kurang: <span style='color:#ef4444;font-weight:bold;'>{missing_str}</span>."
+            )
     rsi    = ind.get("RSI", 50)
     ema9   = ind.get("EMA9", harga)
     ema21  = ind.get("EMA21", harga)
@@ -630,19 +662,43 @@ def hitung_indikator(df):
         df["MACD"]      = macd_obj.macd()
         df["MACD_hist"] = macd_obj.macd_diff()
         df["vol_ma20"]  = df["volume"].rolling(20).mean()
+        
+        # Penambahan SMA untuk BSJP V1
+        df["MA5"]       = c.rolling(5).mean()
+        df["MA20"]      = c.rolling(20).mean()
+        df["MA50"]      = c.rolling(50).mean()
         return df.iloc[-1].to_dict()
     except:
         return None
 
-def tentukan_sinyal(ind, harga, sesi_status):
+def tentukan_sinyal(ind, harga, prev, sesi_status,
+                    bsjp_strategy="BSJP V1 (Rekomendasi Trader)",
+                    limit_harga_bsjp=True,
+                    min_vol_mult=1.2,
+                    min_val_transaksi=20.0,
+                    min_chg_today=5.0,
+                    min_vol_ma20=1.0,
+                    bypass_jam_bsjp=True,
+                    filter_ma_trend=True):
     if ind is None:
-        return "TUNGGU", ["Data kurang"]
+        return "TUNGGU", ["Data kurang"], {}
     rsi    = ind.get("RSI", 50)
     ema9   = ind.get("EMA9", harga)
     ema21  = ind.get("EMA21", harga)
     mh     = ind.get("MACD_hist", 0)
     vol    = ind.get("volume", 0)
     volma  = ind.get("vol_ma20", vol or 1)
+    
+    # Indikator SMA (baru)
+    ma5    = ind.get("MA5", harga)
+    ma20   = ind.get("MA20", harga)
+    ma50   = ind.get("MA50", harga)
+
+    # Batas ARA Dinamis berdasarkan prev close
+    ara_limit = get_ara_limit(prev)
+    chg = (harga - prev) / prev * 100 if prev > 0 else 0
+
+    # Logika BPJS / BELI Klasik
     bull   = ema9 > ema21
     diatas = harga > ema21
     vspike = vol >= volma * 1.15 if volma > 0 else False
@@ -656,13 +712,68 @@ def tentukan_sinyal(ind, harga, sesi_status):
     if not bull:   js+=1; alasan.append("EMA9<21 ⚠️")
     if mh < 0:     js+=1; alasan.append("MACD- ⚠️")
     if not diatas: js+=1; alasan.append("Di bawah EMA21 ⚠️")
+
+    # Ambil Waktu Saat Ini
     now = datetime.now(WIB)
     h2, m2 = now.hour, now.minute
-    bsjp_ok = (14,30)<=(h2,m2)<=(15,50) and sesi_status=="buka" and bs>=4 and rsi<58 and mh>0
-    if js >= 3:    return "JUAL",   alasan
-    if bsjp_ok:    return "BSJP",   alasan
-    if bs >= 3:    return "BELI",   alasan
-    return "TUNGGU", alasan
+    
+    # ── LOGIKA BSJP ───────────────────────────────────────────────────────────
+    bsjp_ok = False
+    bsjp_metrics = {}
+
+    if bsjp_strategy == "BSJP V1 (Rekomendasi Trader)":
+        c_price_range = (harga >= 50 and harga <= 200) if limit_harga_bsjp else True
+        c_vol_spike   = vol >= (min_vol_mult * volma)
+        c_value       = (harga * vol) >= (min_val_transaksi * 1_000_000_000)
+        c_min_chg     = chg > min_chg_today
+        c_max_chg     = chg <= (ara_limit - 1.0)
+        c_vol_ma20    = volma >= (min_vol_ma20 * 1_000_000)
+        
+        if filter_ma_trend:
+            c_trend_med = ma20 >= ma50
+            c_trend_short = ma5 >= ma20
+        else:
+            c_trend_med = True
+            c_trend_short = True
+            
+        c_time = True
+        if not bypass_jam_bsjp:
+            c_time = (14,30)<=(h2,m2)<=(15,50) and sesi_status=="buka"
+            
+        bsjp_ok = (c_price_range and c_vol_spike and c_value and c_min_chg and 
+                   c_max_chg and c_vol_ma20 and c_trend_med and c_trend_short and c_time)
+        
+        bsjp_metrics = {
+            "Harga Rp50-200": c_price_range,
+            "Vol >= Vol MA20": c_vol_spike,
+            "Value Hari Ini": c_value,
+            "Kenaikan > Min": c_min_chg,
+            "Kenaikan <= ARA": c_max_chg,
+            "Vol MA20 Konsisten": c_vol_ma20,
+            "MA20 >= MA50": c_trend_med,
+            "MA5 >= MA20": c_trend_short,
+            "Jam Operasional": c_time
+        }
+        
+        if bsjp_ok:
+            alasan = ["BSJP V1 Lolos Semua Kriteria 🌟"]
+    else:
+        # BSJP Klasik
+        time_ok = (14,30)<=(h2,m2)<=(15,50) and sesi_status=="buka" if not bypass_jam_bsjp else True
+        bsjp_ok = time_ok and bs>=4 and rsi<58 and mh>0
+        bsjp_metrics = {
+            "RSI < 58": rsi < 58,
+            "MACD+": mh > 0,
+            "Sinyal Beli >= 4": bs >= 4,
+            "Jam Operasional": time_ok
+        }
+        if bsjp_ok:
+            alasan = ["BSJP Klasik Lolos 🌟"]
+
+    if js >= 3:    return "JUAL",   alasan, bsjp_metrics
+    if bsjp_ok:    return "BSJP",   alasan, bsjp_metrics
+    if bs >= 3:    return "BELI",   alasan, bsjp_metrics
+    return "TUNGGU", alasan, bsjp_metrics
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SIDEBAR
@@ -683,6 +794,49 @@ modal_per_saham = st.sidebar.number_input(
 target_pct = st.sidebar.slider("🎯 Target Profit (%)", 2.0, 20.0, 5.0, 0.5)
 sl_pct     = st.sidebar.slider("🛑 Stop Loss (%)",   1.0, 10.0, 3.0, 0.5)
 max_sahams  = st.sidebar.slider("📋 Jumlah Saham",     5,   150,  50)
+
+# BSJP Strategy and Parameters Expander
+with st.sidebar.expander("🔥 Parameter BSJP V1 Setup", expanded=True):
+    bsjp_strategy = st.selectbox(
+        "Strategi BSJP:",
+        ["BSJP V1 (Rekomendasi Trader)", "BSJP Klasik (Default)"],
+        index=0
+    )
+    limit_harga_bsjp = st.checkbox(
+        "Batasi Harga Saham (Rp 50 - 200)",
+        value=True,
+        help="Hanya merekomendasikan saham di rentang harga Rp 50 – Rp 200 untuk BSJP V1."
+    )
+    min_vol_mult = st.slider(
+        "Min. Volume Multiplier (x MA20)",
+        1.0, 3.0, 1.2, 0.1,
+        help="Volume hari ini minimal X kali lebih besar dari rata-rata volume 20 hari."
+    )
+    bsjp_min_val_transaksi = st.slider(
+        "Min. Nilai Transaksi Hari Ini (Miliar Rp)",
+        1.0, 100.0, 20.0, 5.0,
+        help="Memastikan nilai transaksi (Harga * Volume) hari ini di atas X Miliar Rupiah."
+    )
+    min_chg_today = st.slider(
+        "Min. Kenaikan Hari Ini (%)",
+        1.0, 15.0, 5.0, 0.5,
+        help="Kenaikan harga minimal hari ini agar saham dianggap memiliki momentum."
+    )
+    min_vol_ma20 = st.slider(
+        "Min. Rata-rata Volume MA20 (Juta Lembar)",
+        0.1, 10.0, 1.0, 0.5,
+        help="Rata-rata volume transaksi 20 hari minimal X juta lembar saham (10.000 lot)."
+    )
+    bypass_jam_bsjp = st.checkbox(
+        "Bypass Jam Operasional (Scan Kapan Saja)",
+        value=True,
+        help="Bypass batasan jam 14:30 - 15:50 WIB sehingga Anda bisa melihat sinyal BSJP kapan saja."
+    )
+    filter_ma_trend = st.checkbox(
+        "Filter MA Tren (MA5 >= MA20 >= MA50)",
+        value=True,
+        help="Memastikan saham sedang dalam tren naik jangka pendek dan menengah yang sehat."
+    )
 
 # Multi-Timeframe Configuration
 tf_option = st.sidebar.selectbox("⏱️ Timeframe Analisis:", ["1d", "1h", "15m", "5m"], index=0)
@@ -800,8 +954,18 @@ for i, sym in enumerate(symbols):
     prev  = float(df["close"].iloc[-2]) if len(df) > 1 else harga
     vol   = float(df["volume"].iloc[-1]) if "volume" in df.columns else 0
     chg   = (harga - prev) / prev * 100 if prev > 0 else 0
-    sinyal, alasan = tentukan_sinyal(ind, harga, sesi_status)
-    confidence, conf_label, conf_color = hitung_confidence(ind, harga, sinyal)
+    sinyal, alasan, bsjp_metrics = tentukan_sinyal(
+        ind, harga, prev, sesi_status,
+        bsjp_strategy=bsjp_strategy,
+        limit_harga_bsjp=limit_harga_bsjp,
+        min_vol_mult=min_vol_mult,
+        min_val_transaksi=bsjp_min_val_transaksi,
+        min_chg_today=min_chg_today,
+        min_vol_ma20=min_vol_ma20,
+        bypass_jam_bsjp=bypass_jam_bsjp,
+        filter_ma_trend=filter_ma_trend
+    )
+    confidence, conf_label, conf_color = hitung_confidence(ind, harga, sinyal, bsjp_metrics, bsjp_strategy)
     lot = hitung_lot(modal_per_saham, harga)
     k   = kalkulator(harga, lot, target_pct, sl_pct)
     
@@ -810,10 +974,11 @@ for i, sym in enumerate(symbols):
     df_copy["value"] = df_copy["close"] * df_copy["volume"]
     val_5d = float(df_copy["value"].tail(5).mean()) if len(df_copy) >= 5 else (harga * vol)
     
-    results.append({"symbol":sym,"harga":harga,"chg":chg,"vol":vol,"val_5d":val_5d,
+    results.append({"symbol":sym,"harga":harga,"prev":prev,"chg":chg,"vol":vol,"val_5d":val_5d,
                     "sinyal":sinyal,"alasan":alasan,"ind":ind or {},
                     "lot":lot,"k":k,
-                    "confidence":confidence,"conf_label":conf_label,"conf_color":conf_color})
+                    "confidence":confidence,"conf_label":conf_label,"conf_color":conf_color,
+                    "bsjp_metrics":bsjp_metrics})
     prog.progress((i+1)/len(symbols), text=f"✅ {sym}")
 prog.empty()
 
@@ -884,7 +1049,7 @@ st.markdown("---")
 # ─────────────────────────────────────────────────────────────────────────────
 # HELPER RENDER KARTU
 # ─────────────────────────────────────────────────────────────────────────────
-def render_kartu(r):
+def render_kartu(r, bsjp_strategy="BSJP Klasik"):
     sym    = r["symbol"]
     harga  = r["harga"]
     chg    = r["chg"]
@@ -907,12 +1072,22 @@ def render_kartu(r):
     mh       = ind.get("MACD_hist",0)
     rsi_col  = "#ef4444" if rsi>70 else ("#22c55e" if rsi<40 else "#f59e0b")
     
-    analisis = buat_analisis_singkat(ind, harga, sinyal, chg)
+    analisis = buat_analisis_singkat(ind, harga, sinyal, chg, r.get("bsjp_metrics"), bsjp_strategy)
     confidence = r.get("confidence", 50)
     conf_label = r.get("conf_label", "Cukup")
     conf_color = r.get("conf_color", "#cbd5e1")
 
     alasan_pills = "".join([f'<span class="ind-pill">{a}</span>' for a in r["alasan"]])
+
+    bsjp_check_html = ""
+    if bsjp_strategy == "BSJP V1 (Rekomendasi Trader)" and r.get("bsjp_metrics"):
+        metrics = r["bsjp_metrics"]
+        items = []
+        for name, met in metrics.items():
+            color = "#22c55e" if met else "#ef4444"
+            icon = "✅" if met else "❌"
+            items.append(f'<span style="color:{color};font-size:0.75rem;margin-right:8px;white-space:nowrap;">{icon} {name}</span>')
+        bsjp_check_html = f'<div style="margin-top:8px;display:flex;flex-wrap:wrap;background:rgba(255,255,255,0.05);padding:8px;border-radius:10px;border:1px solid rgba(255,255,255,0.1)">{"".join(items)}</div>'
 
     kalkulasi_html = ""
     if k:
@@ -945,6 +1120,7 @@ def render_kartu(r):
             <span class="ind-pill">MACD {'▲' if mh>0 else '▼'} {mh:.2f}</span>
         </div>
         <div style="margin-top:8px">{alasan_pills}</div>
+        {bsjp_check_html}
         <div style="margin-top:8px;padding:10px;background:rgba(0,0,0,0.2);border-radius:10px;font-size:0.8rem;color:#cbd5e1">
             <b style="color:{conf_color}">Confidence: {confidence}% — {conf_label}</b><br>
             <span style="font-size:0.78rem">{analisis}</span>
@@ -977,7 +1153,7 @@ with tab1:
                         r['lot'] = hitung_lot(modal_per_saham, override_price)
                         r['k'] = kalkulator(override_price, r['lot'], target_pct, sl_pct)
                 
-                render_kartu(r)
+                render_kartu(r, bsjp_strategy)
                 
                 # Interactive Price Override Input
                 st.number_input(
@@ -1007,7 +1183,7 @@ with tab1:
                         r['lot'] = hitung_lot(modal_per_saham, override_price)
                         r['k'] = kalkulator(override_price, r['lot'], target_pct, sl_pct)
                 
-                render_kartu(r)
+                render_kartu(r, bsjp_strategy)
                 
                 st.number_input(
                     f"✏️ Sesuaikan Harga {r['symbol']}:",
@@ -1031,7 +1207,7 @@ with tab1:
                             r['lot'] = hitung_lot(modal_per_saham, override_price)
                             r['k'] = kalkulator(override_price, r['lot'], target_pct, sl_pct)
                     
-                    render_kartu(r)
+                    render_kartu(r, bsjp_strategy)
                     
                     st.number_input(
                         f"✏️ Sesuaikan Harga {r['symbol']}:",
