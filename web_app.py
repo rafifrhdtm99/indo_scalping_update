@@ -733,7 +733,7 @@ def render_kartu(r):
 
     alasan_pills = "".join([f'<span class="ind-pill">{a}</span>' for a in r["alasan"]])
 
-        kalkulasi_html = ""
+    kalkulasi_html = ""
     if k:
         kalkulasi_html = (
             f'<div class="kalkulator">'
