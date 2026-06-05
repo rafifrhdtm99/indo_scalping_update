@@ -31,43 +31,49 @@ TG_TOKEN     = "8989322838:AAHdCXYAM-jR3NYX2Y3kt5hmqpMm3UINBMo"
 TG_CHAT_ID   = "6905606117"
 ENABLE_TG    = True
 
-# ── LQ45 + Saham Populer Multi-Sektor (130+ saham) ───────────────────────────
+# ── LQ45 + Saham Populer Multi-Sektor (~230 saham) ───────────────────────────
 LQ45_POPULER = [
     # === PERBANKAN ===
     "BBCA","BBRI","BMRI","BBTN","BJBR","BJTM","BNGA","NISP","PNBN",
     "BACA","ARTO","MEGA","BSIM","AGRO","BANK","BBKP","BCAP","BMAS",
+    "BDMN","BTPS","BBHI","BBYB","BTPN","MASB","DNAR",
     # === TELEKOMUNIKASI ===
-    "TLKM","ISAT","EXCL","FREN","TBIG","TOWR",
-    # === PERTAMBANGAN & ENERGI ===
+    "TLKM","ISAT","EXCL","FREN","TBIG","TOWR","WIFI","LINK",
+    # === PERTAMBANGAN, ENERGI & LOGAM ===
     "ANTM","MDKA","PTBA","ADRO","INCO","TINS","ESSA","HRUM","ITMG","VALE",
     "DEWA","BRMS","BULL","BNBR","BUMI","ELSA","BIPI","MEDC","COAL","DOID",
-    "SMMT","GEMS","RATU","MBAP","CITA",
+    "SMMT","GEMS","RATU","MBAP","CITA","ADMR","MBMA","TOBA","INDY","PTRO",
+    "APEX","CUAN","PGEO","SGER","MITI",
     # === PROPERTI & KONSTRUKSI ===
     "BSDE","CTRA","PWON","SMRA","KIJA","LPKR","BKSL","MDLN","DMAS","MTLA",
     "ASRI","JRPT","BEST","NZIA","NRCA","SSIA","BAPA","MKPI","DUTI","BIPP",
-    "WIKA","WSKT","PTPP",
+    "WIKA","WSKT","PTPP","ADHI","TOTL","DILD","SMDM","PPRO","PPRE","ACST",
     # === CONSUMER GOODS & RITEL ===
     "UNVR","ICBP","INDF","GGRM","HMSP","MAPI","ACES","MIKA","HEAL","KLBF",
     "SIDO","MYOR","CLEO","GOOD","ULTJ","DLTA","ROTI","AMRT","HERO","CSAP",
-    "RALS","LPPF","ERAA","MIDI",
+    "RALS","LPPF","ERAA","MIDI","PZZA","FAST","MAPA","MAPB","MPPA","WOOD",
+    "BUKA","BELI","KBLI","WIPO","CAMP",
     # === KESEHATAN & FARMASI ===
-    "KAEF","SOHO","TSPC","DVLA","MERK","PYFA",
+    "KAEF","SOHO","TSPC","DVLA","MERK","PYFA","SILO","PRDA","SAME","DGNS",
+    "OMED","PEHA",
     # === INFRASTRUKTUR & UTILITAS ===
-    "JSMR","PGAS","AKRA","SMGR","INTP","SMBR","WSBP","WTON","ACST",
-    # === TEKNOLOGI & DIGITAL & MEDIA ===
-    "GOTO","EMTK","MNCN","SCMA","DGNS","FILM","MTDL","WIFI","MCAS","AXIO","DMMX",
-    # === OTOMOTIF & ALAT BERAT ===
-    "ASII","AUTO","IMAS","SMSM","UNTR","HEXA","GJTL","INDS",
-    # === AGRIBISNIS ===
-    "AALI","LSIP","SSMS","SGRO","TAPG","BWPT","MGRO",
-    # === KEUANGAN NON-BANK ===
-    "ADMF","BFIN","WOMF","MFIN","IMJS","BPFI",
+    "JSMR","PGAS","AKRA","SMGR","INTP","SMBR","WSBP","WTON","SMCB",
+    "KEEN","TGRA","POWR","META","BIRD","ASSA","HELI",
+    # === TEKNOLOGI & DIGITAL ===
+    "GOTO","EMTK","MNCN","SCMA","FILM","MTDL","MCAS","AXIO","DMMX",
+    "MSIN","BOLA","IPTV","BABP","BHIT","KPIG",
+    # === OTOMOTIF ===
+    "ASII","AUTO","IMAS","SMSM","UNTR","HEXA","GJTL","INDS","DRMA","BOLT",
     # === SHIPPING & LOGISTIK ===
-    "MBSS","HITS","SMDR","TMAS","PSSI",
+    "MBSS","HITS","SMDR","TMAS","PSSI","HAIS","NELI","PORT","ALAS","SDMU",
+    # === AGRIBISNIS ===
+    "AALI","LSIP","SSMS","SGRO","TAPG","BWPT","MGRO","SIMP","ANDI","DSNG",
+    # === KEUANGAN NON-BANK ===
+    "ADMF","BFIN","WOMF","MFIN","IMJS","BPFI","CFIN","APIC",
     # === KIMIA & MATERIAL DASAR ===
-    "BRPT","TPIA","MARK","BUDI","DPNS","EKAD","ETWA",
+    "BRPT","TPIA","MARK","BUDI","DPNS","EKAD","ETWA","AGII","UNIC","INCI",
     # === HOT STOCKS & MOMENTUM ===
-    "BREN","AMMN","SRTG","HRTA","BBKP","SRAJ","MSIN",
+    "BREN","AMMN","SRTG","HRTA","SRAJ","PANI",
 ]
 # Hapus duplikat, jaga urutan
 _seen = set()
@@ -77,37 +83,40 @@ LQ45_POPULER = [x for x in LQ45_POPULER if not (x in _seen or _seen.add(x))]
 BSJP_WATCHLIST = [
     # === PERBANKAN — likuid & banyak gerak sesi 2 ===
     "BBCA","BBRI","BMRI","BBTN","BJBR","BJTM","BNGA","NISP","PNBN",
-    "BACA","ARTO","MEGA","BCAP","BBKP",
+    "BACA","ARTO","MEGA","BCAP","BBKP","BDMN","BTPS","BBHI","BBYB",
     # === TELEKOMUNIKASI ===
-    "TLKM","ISAT","EXCL","FREN","TBIG","TOWR",
+    "TLKM","ISAT","EXCL","FREN","TBIG","TOWR","WIFI",
     # === PERTAMBANGAN & ENERGI — volatilitas tinggi, favorit BSJP ===
     "ANTM","MDKA","PTBA","ADRO","INCO","TINS","ESSA","HRUM","ITMG","VALE",
     "DEWA","BRMS","BULL","BNBR","BUMI","ELSA","BIPI","MEDC","COAL","DOID",
-    "SMMT","GEMS","RATU","MBAP","CITA",
-    # === PROPERTI — seringkali pump sesi 2 & BSJP favorit ===
+    "SMMT","GEMS","RATU","MBAP","CITA","ADMR","MBMA","TOBA","INDY","PTRO",
+    "CUAN","PGEO","SGER",
+    # === PROPERTI & KONSTRUKSI — seringkali pump sesi 2 & BSJP favorit ===
     "BSDE","CTRA","PWON","SMRA","KIJA","LPKR","BKSL","MDLN","DMAS","MTLA",
-    "ASRI","JRPT","BEST","NZIA","NRCA","SSIA","DUTI","BIPP","BAPA",
+    "ASRI","JRPT","BEST","NZIA","NRCA","SSIA","DUTI","BIPP","BAPA","PPRE",
+    "WIKA","WSKT","PTPP","ADHI","TOTL","DILD",
     # === CONSUMER GOODS & RITEL ===
     "ICBP","INDF","GGRM","HMSP","MAPI","ACES","MIKA","HEAL","UNVR","KLBF",
-    "SIDO","MYOR","CLEO","GOOD","ULTJ","AMRT","RALS","ERAA",
-    # === INFRASTRUKTUR & KONSTRUKSI ===
-    "JSMR","WIKA","WSKT","PTPP","PGAS","AKRA","SMGR","INTP","WTON","ACST",
+    "SIDO","MYOR","CLEO","GOOD","ULTJ","AMRT","RALS","LPPF","ERAA","MIDI",
+    "BUKA","BELI","MPPA",
+    # === INFRASTRUKTUR & UTILITAS ===
+    "JSMR","PGAS","AKRA","SMGR","INTP","WTON","ACST","BIRD","ASSA",
     # === TEKNOLOGI & DIGITAL & MEDIA ===
-    "GOTO","EMTK","MNCN","SCMA","DGNS","FILM","MTDL","ERAA","MCAS","WIFI",
-    "AXIO","DMMX",
+    "GOTO","EMTK","MNCN","SCMA","FILM","MTDL","MCAS","WIFI","AXIO","DMMX",
+    "MSIN","BOLA",
     # === OTOMOTIF ===
-    "ASII","AUTO","UNTR","SMSM","HEXA",
+    "ASII","AUTO","UNTR","SMSM","HEXA","DRMA",
     # === AGRIBISNIS ===
-    "AALI","LSIP","SSMS","SGRO","TAPG","MGRO",
+    "AALI","LSIP","SSMS","SGRO","TAPG","MGRO","DSNG",
     # === KESEHATAN ===
-    "KAEF","SOHO","TSPC","DVLA","HEAL","MIKA","KLBF",
+    "KAEF","SOHO","TSPC","DVLA","HEAL","MIKA","KLBF","SILO","SAME",
     # === KIMIA & MATERIAL ===
-    "BRPT","TPIA","MARK","DPNS",
+    "BRPT","TPIA","MARK","DPNS","AGII",
     # === SHIPPING ===
-    "MBSS","HITS","SMDR","TMAS",
-    # === HOT STOCKS & MOMENTUM — NZIA ★ ===
+    "MBSS","HITS","SMDR","TMAS","PSSI","HAIS","NELI",
+    # === HOT STOCKS & MOMENTUM ===
     "NZIA","BREN","AMMN","SRTG","HRTA","GOTO","MDKA","BBKP",
-    "SRAJ","MSIN","COAL","ESSA","BIPI",
+    "SRAJ","COAL","ESSA","BIPI","PANI",
 ]
 _seen2 = set()
 BSJP_WATCHLIST = [x for x in BSJP_WATCHLIST if not (x in _seen2 or _seen2.add(x))]
@@ -696,6 +705,14 @@ tv_interval = st.sidebar.select_slider(
 st.sidebar.markdown("### 🔍 Filter & Sortir")
 filter_sinyal = st.sidebar.checkbox("Hanya Sinyal BELI / BSJP", value=False)
 min_confidence = st.sidebar.slider("🔥 Min. Confidence (%)", 10, 100, 30)
+min_value_transaksi = st.sidebar.slider(
+    "💰 Min. Transaksi Harian (Miliar Rp)",
+    min_value=0.1,
+    max_value=50.0,
+    value=2.0,
+    step=0.5,
+    help="Menyaring saham-saham yang sepi/tidak likuid agar terhindar dari risiko tidak bisa jualan (default: 2 Miliar Rp)."
+)
 
 urut_opsi = st.sidebar.selectbox("Urutkan Berdasarkan:", [
     "Sinyal Teratas (Default)",
@@ -787,7 +804,13 @@ for i, sym in enumerate(symbols):
     confidence, conf_label, conf_color = hitung_confidence(ind, harga, sinyal)
     lot = hitung_lot(modal_per_saham, harga)
     k   = kalkulator(harga, lot, target_pct, sl_pct)
-    results.append({"symbol":sym,"harga":harga,"chg":chg,"vol":vol,
+    
+    # Hitung rata-rata nilai transaksi harian 5 hari (Rupiah)
+    df_copy = df.copy()
+    df_copy["value"] = df_copy["close"] * df_copy["volume"]
+    val_5d = float(df_copy["value"].tail(5).mean()) if len(df_copy) >= 5 else (harga * vol)
+    
+    results.append({"symbol":sym,"harga":harga,"chg":chg,"vol":vol,"val_5d":val_5d,
                     "sinyal":sinyal,"alasan":alasan,"ind":ind or {},
                     "lot":lot,"k":k,
                     "confidence":confidence,"conf_label":conf_label,"conf_color":conf_color})
@@ -826,6 +849,8 @@ for r in results:
     if filter_sinyal and r["sinyal"] not in ("BELI", "BSJP"):
         continue
     if r["confidence"] < min_confidence:
+        continue
+    if r.get("val_5d", 0) < min_value_transaksi * 1_000_000_000:
         continue
     filtered_results.append(r)
 
@@ -915,7 +940,7 @@ def render_kartu(r):
         <div>
             <span class="ind-pill" style="color:{rsi_col}">RSI {rsi:.0f}</span>
             <span class="ind-pill">EMA9 {ema9:,.0f}</span>
-            <span class="ind-pill">EMA21 {ema21:,.0f}</span>
+            <span class="ind-pill">Val 5D: {r.get('val_5d', 0)/1_000_000_000:.1f}M</span>
             <span class="ind-pill">EMA50 {ema50:,.0f}</span>
             <span class="ind-pill">MACD {'▲' if mh>0 else '▼'} {mh:.2f}</span>
         </div>
