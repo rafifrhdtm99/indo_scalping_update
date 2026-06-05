@@ -733,17 +733,18 @@ def render_kartu(r):
 
     alasan_pills = "".join([f'<span class="ind-pill">{a}</span>' for a in r["alasan"]])
 
-    kalkulasi_html = ""
+        kalkulasi_html = ""
     if k:
-        kalkulasi_html = f"""
-        <div class="kalkulator">
-            💼 <b>Lot:</b> {lot} lot &nbsp;|&nbsp;
-            💰 <b>Modal:</b> Rp {k['modal']:,.0f}<br>
-            🎯 <b>Target:</b> Rp {snap_fraksi(k['ht']):,} &nbsp;|&nbsp;
-            🛑 <b>Stop Loss:</b> Rp {snap_fraksi(k['hsl']):,}<br>
-            ✅ <b>Est. Profit:</b> <span style="color:#22c55e">Rp {k['profit']:+,.0f}</span> &nbsp;|&nbsp;
-            ❌ <b>Est. Rugi:</b> <span style="color:#ef4444">Rp {k['rugi']:+,.0f}</span>
-        </div>"""
+        kalkulasi_html = (
+            f'<div class="kalkulator">'
+            f'💼 <b>Lot:</b> {lot} lot &nbsp;|&nbsp; '
+            f'💰 <b>Modal:</b> Rp {k["modal"]:,.0f}<br>'
+            f'🎯 <b>Target:</b> Rp {snap_fraksi(k["ht"]):,} &nbsp;|&nbsp; '
+            f'🛑 <b>Stop Loss:</b> Rp {snap_fraksi(k["hsl"]):,}<br>'
+            f'✅ <b>Est. Profit:</b> <span style="color:#22c55e">Rp {k["profit"]:+,.0f}</span> &nbsp;|&nbsp; '
+            f'❌ <b>Est. Rugi:</b> <span style="color:#ef4444">Rp {k["rugi"]:+,.0f}</span>'
+            f'</div>'
+        )
 
     st.markdown(f"""
     <div class="{css}">
