@@ -911,8 +911,6 @@ for r in results:
         continue
     if r["confidence"] < min_confidence:
         continue
-    if r.get("val_5d", 0) < min_value_transaksi * 1_000_000_000:
-        continue
     filtered_results.append(r)
 
 # Tampilkan Status Pemindaian di Sidebar
