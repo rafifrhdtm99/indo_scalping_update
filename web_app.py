@@ -198,9 +198,16 @@ def tv_ticker_tape(symbols_list):
     """
 
 def tv_technical_analysis(symbol, interval="1D", height=380):
-    tv_int = interval
-    if interval == "1D": tv_int = "D"
-    elif interval == "1W": tv_int = "W"
+    mapping = {
+        "1": "1m",
+        "5": "5m",
+        "15": "15m",
+        "30": "30m",
+        "60": "1h",
+        "1D": "1D",
+        "1W": "1W"
+    }
+    tv_int = mapping.get(interval, "1D")
     
     return f"""
     <div class="tradingview-widget-container">
