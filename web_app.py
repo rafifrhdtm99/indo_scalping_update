@@ -7,6 +7,8 @@ import json
 import os
 from datetime import datetime, timedelta
 import pytz
+import urllib.request
+import urllib.parse
 
 # ─────────────────────────────────────────────────────────────────────────────
 # KONFIGURASI
@@ -22,6 +24,7 @@ WIB          = pytz.timezone("Asia/Jakarta")
 FEE_BELI     = 0.0010
 FEE_JUAL     = 0.0020
 HISTORY_FILE = os.path.join(os.path.dirname(__file__), "signal_history.json")
+ALERTS_FILE  = os.path.join(os.path.dirname(__file__), "telegram_alerts.json")
 
 # ── LQ45 + Saham Populer Multi-Sektor (130+ saham) ───────────────────────────
 LQ45_POPULER = [
@@ -190,13 +193,17 @@ def tv_ticker_tape(symbols_list):
     """
 
 def tv_technical_analysis(symbol, interval="1D", height=380):
+    tv_int = interval
+    if interval == "1D": tv_int = "D"
+    elif interval == "1W": tv_int = "W"
+    
     return f"""
     <div class="tradingview-widget-container">
       <div class="tradingview-widget-container__widget"></div>
       <script type="text/javascript"
         src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
       {{
-        "interval": "{interval}",
+        "interval": "{tv_int}",
         "width": "100%",
         "isTransparent": true,
         "height": {height},
@@ -210,23 +217,31 @@ def tv_technical_analysis(symbol, interval="1D", height=380):
     </div>
     """
 
-def tv_mini_chart(symbol, height=220):
+def tv_advanced_chart(symbol, interval="1D", height=400):
+    tv_int = interval
+    if interval == "1D": tv_int = "D"
+    elif interval == "1W": tv_int = "W"
+    
     return f"""
-    <div class="tradingview-widget-container">
-      <div class="tradingview-widget-container__widget"></div>
-      <script type="text/javascript"
-        src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>
-      {{
-        "symbol": "IDX:{symbol}",
+    <div class="tradingview-widget-container" style="height:{height}px;">
+      <div id="tv_chart_{symbol}" style="height:{height}px;"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+      <script type="text/javascript">
+      new TradingView.widget({{
         "width": "100%",
         "height": {height},
+        "symbol": "IDX:{symbol}",
+        "interval": "{tv_int}",
+        "timezone": "Asia/Jakarta",
+        "theme": "dark",
+        "style": "1",
         "locale": "id",
-        "dateRange": "1M",
-        "colorTheme": "dark",
-        "isTransparent": true,
-        "autosize": false,
-        "largeChartUrl": "https://www.tradingview.com/chart/?symbol=IDX:{symbol}"
-      }}
+        "toolbar_bg": "#f1f3f6",
+        "enable_publishing": false,
+        "hide_side_toolbar": false,
+        "allow_symbol_change": true,
+        "container_id": "tv_chart_{symbol}"
+      }});
       </script>
     </div>
     """
@@ -342,14 +357,17 @@ def evaluate_history():
             entry["harga_close"] = round(close_price, 0)
             entry["return_pct"]  = round(ret, 2)
             if entry["sinyal"] in ("BELI", "BSJP"):
-                if ret >= entry["target_pct"]:
-                    outcome = "HIT_TARGET ✅"
-                elif ret <= -entry["sl_pct"]:
-                    outcome = "HIT_SL ❌"
-                elif ret > 0:
-                    outcome = "PROFIT 🟡"
+                if r := entry["return_pct"]:
+                    if r >= entry["target_pct"]:
+                        outcome = "HIT_TARGET ✅"
+                    elif r <= -entry["sl_pct"]:
+                        outcome = "HIT_SL ❌"
+                    elif r > 0:
+                        outcome = "PROFIT 🟡"
+                    else:
+                        outcome = "LOSS 🔴"
                 else:
-                    outcome = "LOSS 🔴"
+                    continue
             else:
                 outcome = "TURUN ✅" if ret < 0 else "NAIK ❌"
             entry["outcome"]       = outcome
@@ -360,6 +378,69 @@ def evaluate_history():
     if changed:
         save_history(history)
     return history, changed
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TELEGRAM BOT LOGIC
+# ─────────────────────────────────────────────────────────────────────────────
+def load_sent_alerts():
+    if not os.path.exists(ALERTS_FILE):
+        return {}
+    try:
+        with open(ALERTS_FILE, "r") as f:
+            return json.load(f)
+    except:
+        return {}
+
+def save_sent_alerts(alerts):
+    try:
+        with open(ALERTS_FILE, "w") as f:
+            json.dump(alerts, f)
+    except:
+        pass
+
+def send_telegram_alert(token, chat_id, r, tf, target_pct, sl_pct):
+    sym = r["symbol"]
+    sinyal = r["sinyal"]
+    harga = r["harga"]
+    lot = r["lot"]
+    k = r["k"]
+    confidence = r["confidence"]
+    conf_label = r["conf_label"]
+    
+    sig_emoji = "🟢" if sinyal == "BELI" else "🟣"
+    sig_name = "BELI (BPJS)" if sinyal == "BELI" else "BELI SORE (BSJP)"
+    
+    target_price = snap_fraksi(k["ht"]) if k else harga
+    sl_price = snap_fraksi(k["hsl"]) if k else harga
+    modal = k["modal"] if k else 0
+    profit = k["profit"] if k else 0
+    rugi = k["rugi"] if k else 0
+    
+    msg = (
+        f"<b>{sig_emoji} SIGNAL ALERT: {sym}</b>\n"
+        f"───────────────────\n"
+        f"🎯 <b>Sinyal:</b> {sig_name}\n"
+        f"⏱️ <b>Timeframe:</b> {tf}\n"
+        f"💵 <b>Harga Masuk:</b> Rp {harga:,.0f}\n"
+        f"💼 <b>Rekomendasi Lot:</b> {lot} lot\n"
+        f"💰 <b>Estimasi Modal:</b> Rp {modal:,.0f}\n"
+        f"📊 <b>Confidence:</b> {confidence}% ({conf_label})\n\n"
+        f"🎯 <b>Target Jual:</b> Rp {target_price:,.0f} (+{target_pct:.1f}%)\n"
+        f"🛑 <b>Stop Loss:</b> Rp {sl_price:,.0f} (-{sl_pct:.1f}%)\n"
+        f"✅ <b>Est. Profit:</b> Rp {profit:+,.0f}\n"
+        f"❌ <b>Est. Rugi:</b> Rp {rugi:+,.0f}\n"
+        f"───────────────────\n"
+        f"<i>Jam Scan: {datetime.now(WIB).strftime('%d/%m/%Y %H:%M:%S')} WIB</i>"
+    )
+    
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    data = urllib.parse.urlencode({"chat_id": chat_id, "text": msg, "parse_mode": "HTML"}).encode("utf-8")
+    try:
+        req = urllib.request.Request(url, data=data)
+        with urllib.request.urlopen(req, timeout=5) as response:
+            return True
+    except Exception as e:
+        return False
 
 # ─────────────────────────────────────────────────────────────────────────────
 # FUNGSI ANALISIS & SINYAL
@@ -486,13 +567,13 @@ def kalkulator(harga, lot, target_pct, sl_pct):
 # ─────────────────────────────────────────────────────────────────────────────
 # FETCH DATA (yfinance only)
 # ─────────────────────────────────────────────────────────────────────────────
-@st.cache_data(ttl=1800, show_spinner=False)
-def fetch_batch_yfinance(syms_tuple):
+@st.cache_data(ttl=120, show_spinner=False)
+def fetch_batch_yfinance(syms_tuple, period="6mo", interval="1d"):
     symbols = list(syms_tuple)
     tickers = [f"{s}.JK" for s in symbols]
     result  = {}
     try:
-        raw = yf.download(tickers, period="6mo", interval="1d",
+        raw = yf.download(tickers, period=period, interval=interval,
                           auto_adjust=True, progress=False, threads=True)
         if raw.empty:
             return {}
@@ -582,11 +663,55 @@ target_pct = st.sidebar.slider("🎯 Target Profit (%)", 2.0, 20.0, 5.0, 0.5)
 sl_pct     = st.sidebar.slider("🛑 Stop Loss (%)",   1.0, 10.0, 3.0, 0.5)
 max_sahams  = st.sidebar.slider("📋 Jumlah Saham",     5,   150,  50)
 
+# Multi-Timeframe Configuration
+tf_option = st.sidebar.selectbox("⏱️ Timeframe Analisis:", ["1d", "1h", "15m", "5m"], index=0)
+
+tf_mapping = {
+    "5m":  {"period": "2d",  "interval": "5m"},
+    "15m": {"period": "5d",  "interval": "15m"},
+    "1h":  {"period": "1mo", "interval": "1h"},
+    "1d":  {"period": "6mo", "interval": "1d"}
+}
+tf_config = tf_mapping[tf_option]
+
 tv_interval = st.sidebar.select_slider(
     "📈 Timeframe TradingView:",
     options=["1", "5", "15", "30", "60", "1D", "1W"],
     value="1D"
 )
+
+# Sorting and Filtering
+st.sidebar.markdown("### 🔍 Filter & Sortir")
+filter_sinyal = st.sidebar.checkbox("Hanya Sinyal BELI / BSJP", value=False)
+min_confidence = st.sidebar.slider("🔥 Min. Confidence (%)", 10, 100, 30)
+
+urut_opsi = st.sidebar.selectbox("Urutkan Berdasarkan:", [
+    "Sinyal Teratas (Default)",
+    "Confidence tertinggi",
+    "% Change terbesar",
+    "RSI terendah (Oversold)",
+    "Volume transaksi"
+], index=0)
+
+# Telegram Bot configuration
+with st.sidebar.expander("🔔 Notifikasi Telegram"):
+    tg_token = st.text_input("Bot Token:", type="password", help="Dapatkan dari @BotFather di Telegram")
+    tg_chat_id = st.text_input("Chat ID:", help="ID Chat personal atau grup Anda")
+    enable_tg = st.checkbox("Aktifkan Notifikasi Bot", value=False)
+    
+    if st.button("🔌 Test Kirim Notifikasi", use_container_width=True):
+        if tg_token and tg_chat_id:
+            test_text = "<b>🔔 Scalping IHSG Bot</b>\n\nKoneksi berhasil! Bot siap mengirimkan sinyal trading real-time. 🚀"
+            url = f"https://api.telegram.org/bot{tg_token}/sendMessage"
+            data = urllib.parse.urlencode({"chat_id": tg_chat_id, "text": test_text, "parse_mode": "HTML"}).encode("utf-8")
+            try:
+                req = urllib.request.Request(url, data=data)
+                with urllib.request.urlopen(req, timeout=5) as response:
+                    st.success("✅ Pesan test berhasil dikirim!")
+            except Exception as e:
+                st.error(f"❌ Gagal kirim: {e}")
+        else:
+            st.warning("Mohon isi Token dan Chat ID terlebih dahulu.")
 
 manual_input = ""
 if "Manual" in mode_saham:
@@ -644,8 +769,8 @@ st.markdown(f'<div class="{css_map[sesi_status]}">{sesi_label} &nbsp;|&nbsp; �
             unsafe_allow_html=True)
 
 # ── Download data yfinance ────────────────────────────────────────────────────
-with st.spinner(f"📥 Mengunduh data historis {len(symbols)} saham (yfinance batch)..."):
-    all_data = fetch_batch_yfinance(tuple(symbols))
+with st.spinner(f"📥 Mengunduh data {len(symbols)} saham (interval {tf_option})..."):
+    all_data = fetch_batch_yfinance(tuple(symbols), period=tf_config["period"], interval=tf_config["interval"])
 
 if not all_data:
     st.error("❌ Gagal unduh data. Cek koneksi internet.")
@@ -677,19 +802,58 @@ for i, sym in enumerate(symbols):
     prog.progress((i+1)/len(symbols), text=f"✅ {sym}")
 prog.empty()
 
-urutan = {"BELI":0,"BSJP":1,"JUAL":2,"TUNGGU":3}
-results.sort(key=lambda x: urutan.get(x["sinyal"],9))
-
-# ── Auto-save ke Signal History ───────────────────────────────────────────────
+# ── Auto-save ke Signal History & Kirim Telegram Alerts ────────────────────────
 new_signals = record_signals(results, modal_per_saham, target_pct, sl_pct)
 if new_signals > 0:
     st.toast(f"✅ {new_signals} sinyal baru disimpan ke Signal History!", icon="📌")
 
+if enable_tg and tg_token and tg_chat_id:
+    sent_alerts = load_sent_alerts()
+    today_str = datetime.now(WIB).strftime("%Y-%m-%d")
+    alerts_sent_count = 0
+    
+    for r in results:
+        if r["sinyal"] in ("BELI", "BSJP"):
+            if r["confidence"] < min_confidence:
+                continue
+            # Alert key unik per saham, timeframe, dan tipe sinyal harian
+            alert_key = f"{today_str}_{r['symbol']}_{tf_option}_{r['sinyal']}"
+            if alert_key not in sent_alerts:
+                success = send_telegram_alert(tg_token, tg_chat_id, r, tf_option, target_pct, sl_pct)
+                if success:
+                    sent_alerts[alert_key] = True
+                    alerts_sent_count += 1
+                    
+    if alerts_sent_count > 0:
+        save_sent_alerts(sent_alerts)
+        st.toast(f"🔔 {alerts_sent_count} alert baru dikirim ke Telegram!", icon="💬")
+
+# Apply Sorting and UI Filtering
+filtered_results = []
+for r in results:
+    if filter_sinyal and r["sinyal"] not in ("BELI", "BSJP"):
+        continue
+    if r["confidence"] < min_confidence:
+        continue
+    filtered_results.append(r)
+
+if urut_opsi == "Confidence tertinggi":
+    filtered_results.sort(key=lambda x: x["confidence"], reverse=True)
+elif urut_opsi == "% Change terbesar":
+    filtered_results.sort(key=lambda x: x["chg"], reverse=True)
+elif urut_opsi == "RSI terendah (Oversold)":
+    filtered_results.sort(key=lambda x: x["ind"].get("RSI", 100))
+elif urut_opsi == "Volume transaksi":
+    filtered_results.sort(key=lambda x: x["vol"], reverse=True)
+else:
+    urutan = {"BELI":0,"BSJP":1,"JUAL":2,"TUNGGU":3}
+    filtered_results.sort(key=lambda x: urutan.get(x["sinyal"], 9))
+
 # ── Ringkasan Global ──────────────────────────────────────────────────────────
-n_beli   = sum(1 for r in results if r["sinyal"]=="BELI")
-n_bsjp   = sum(1 for r in results if r["sinyal"]=="BSJP")
-n_jual   = sum(1 for r in results if r["sinyal"]=="JUAL")
-n_tunggu = sum(1 for r in results if r["sinyal"]=="TUNGGU")
+n_beli   = sum(1 for r in filtered_results if r["sinyal"]=="BELI")
+n_bsjp   = sum(1 for r in filtered_results if r["sinyal"]=="BSJP")
+n_jual   = sum(1 for r in filtered_results if r["sinyal"]=="JUAL")
+n_tunggu = sum(1 for r in filtered_results if r["sinyal"]=="TUNGGU")
 
 c1,c2,c3,c4 = st.columns(4)
 c1.metric("🟢 Sinyal BELI", n_beli,
@@ -778,20 +942,38 @@ def render_kartu(r):
 tab1, tab2 = st.tabs(["📊 Dashboard Real-Time", "📋 Signal History & Evaluasi"])
 
 with tab1:
-    # BELI & BSJP
-    beli_list = [r for r in results if r["sinyal"] in ("BELI","BSJP")]
-    jual_list = [r for r in results if r["sinyal"] == "JUAL"]
-    tung_list = [r for r in results if r["sinyal"] == "TUNGGU"]
+    beli_list = [r for r in filtered_results if r["sinyal"] in ("BELI","BSJP")]
+    jual_list = [r for r in filtered_results if r["sinyal"] == "JUAL"]
+    tung_list = [r for r in filtered_results if r["sinyal"] == "TUNGGU"]
 
     if beli_list:
         st.markdown('<div class="section-header">🟢 Sinyal BELI & 🟣 BSJP</div>', unsafe_allow_html=True)
         cols = st.columns(min(len(beli_list), 3))
         for i, r in enumerate(beli_list):
             with cols[i % 3]:
+                # Live Price Override
+                override_key = f"override_{r['symbol']}_{tf_option}"
+                if override_key in st.session_state:
+                    override_price = st.session_state[override_key]
+                    if override_price != float(r['harga']):
+                        r['harga'] = override_price
+                        r['lot'] = hitung_lot(modal_per_saham, override_price)
+                        r['k'] = kalkulator(override_price, r['lot'], target_pct, sl_pct)
+                
                 render_kartu(r)
-                with st.expander(f"📈 Chart {r['symbol']}"):
-                    components.html(tv_mini_chart(r["symbol"]), height=230)
-                with st.expander(f"📊 Analisis TradingView {r['symbol']}"):
+                
+                # Interactive Price Override Input
+                st.number_input(
+                    f"✏️ Sesuaikan Harga {r['symbol']}:",
+                    min_value=1.0,
+                    value=float(r['harga']),
+                    step=1.0,
+                    key=override_key
+                )
+                
+                with st.expander(f"📈 Chart TradingView {r['symbol']}"):
+                    components.html(tv_advanced_chart(r["symbol"], interval=tv_interval), height=410)
+                with st.expander(f"📊 Analisis Teknis {r['symbol']}"):
                     components.html(tv_technical_analysis(r["symbol"], interval=tv_interval), height=390)
 
     if jual_list:
@@ -799,14 +981,48 @@ with tab1:
         cols = st.columns(min(len(jual_list), 3))
         for i, r in enumerate(jual_list):
             with cols[i % 3]:
+                # Live Price Override
+                override_key = f"override_{r['symbol']}_{tf_option}"
+                if override_key in st.session_state:
+                    override_price = st.session_state[override_key]
+                    if override_price != float(r['harga']):
+                        r['harga'] = override_price
+                        r['lot'] = hitung_lot(modal_per_saham, override_price)
+                        r['k'] = kalkulator(override_price, r['lot'], target_pct, sl_pct)
+                
                 render_kartu(r)
+                
+                st.number_input(
+                    f"✏️ Sesuaikan Harga {r['symbol']}:",
+                    min_value=1.0,
+                    value=float(r['harga']),
+                    step=1.0,
+                    key=override_key
+                )
 
     if tung_list:
         with st.expander(f"⏳ TUNGGU ({len(tung_list)} saham) — klik untuk lihat"):
             cols = st.columns(3)
             for i, r in enumerate(tung_list):
                 with cols[i % 3]:
+                    # Live Price Override
+                    override_key = f"override_{r['symbol']}_{tf_option}"
+                    if override_key in st.session_state:
+                        override_price = st.session_state[override_key]
+                        if override_price != float(r['harga']):
+                            r['harga'] = override_price
+                            r['lot'] = hitung_lot(modal_per_saham, override_price)
+                            r['k'] = kalkulator(override_price, r['lot'], target_pct, sl_pct)
+                    
                     render_kartu(r)
+                    
+                    st.number_input(
+                        f"✏️ Sesuaikan Harga {r['symbol']}:",
+                        min_value=1.0,
+                        value=float(r['harga']),
+                        step=1.0,
+                        key=override_key
+                    )
 
 with tab2:
     st.markdown("### 📋 Riwayat Sinyal & Evaluasi Akurasi")
