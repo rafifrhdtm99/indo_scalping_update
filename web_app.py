@@ -778,8 +778,8 @@ st.sidebar.markdown("""
 # ─────────────────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="main-header">
-    <h1>📈 Scalping IHSG — Dashboard Pemula</h1>
-    <p>Scanner Saham Otomatis & Sederhana untuk Keputusan Cepat Tanpa Bingung</p>
+<h1>📈 Scalping IHSG — Dashboard Pemula</h1>
+<p>Scanner Saham Otomatis & Sederhana untuk Keputusan Cepat Tanpa Bingung</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -956,50 +956,43 @@ def render_kartu_pemula(r):
     calc_html = ""
     if k and lot > 0:
         profit_color = "#10b981" if k["profit"] >= 0 else "#ef4444"
-        calc_html = f"""
-        <div class="card-kalkulator">
-            🧮 <b>Rencana Eksekusi:</b><br>
-            • Jumlah Beli: <b>{lot} lot</b> ({lot*100:,} lbr) | Modal: <b>Rp {k['modal']:,.0f}</b><br>
-            • Target Jual (TP): <b style="color:#10b981">Rp {snap_fraksi(k['ht']):,}</b> (+{target_pct}%)<br>
-            • Batas Rugi (SL): <b style="color:#ef4444">Rp {snap_fraksi(k['hsl']):,}</b> (-{sl_pct}%)<br>
-            • Estimasi Bersih: <span style="color:{profit_color}; font-weight:700">Untung Rp {k['profit']:,.0f}</span> / <span style="color:#ef4444; font-weight:700">Rugi Rp {abs(k['rugi']):,.0f}</span>
-        </div>
-        """
+        calc_html = f"""<div class="card-kalkulator">
+🧮 <b>Rencana Eksekusi:</b><br>
+• Jumlah Beli: <b>{lot} lot</b> ({lot*100:,} lbr) | Modal: <b>Rp {k['modal']:,.0f}</b><br>
+• Target Jual (TP): <b style="color:#10b981">Rp {snap_fraksi(k['ht']):,}</b> (+{target_pct}%)<br>
+• Batas Rugi (SL): <b style="color:#ef4444">Rp {snap_fraksi(k['hsl']):,}</b> (-{sl_pct}%)<br>
+• Estimasi Bersih: <span style="color:{profit_color}; font-weight:700">Untung Rp {k['profit']:,.0f}</span> / <span style="color:#ef4444; font-weight:700">Rugi Rp {abs(k['rugi']):,.0f}</span>
+</div>"""
     elif lot == 0:
-        calc_html = f"""
-        <div class="card-kalkulator" style="border-left: 3px solid #f59e0b; background: rgba(245, 158, 11, 0.05)">
-            ⚠️ <b>Modal Tidak Cukup:</b><br>
-            Minimal modal untuk 1 lot ({sym}) adalah <b>Rp {harga*100:,.0f}</b>.
-        </div>
-        """
+        calc_html = f"""<div class="card-kalkulator" style="border-left: 3px solid #f59e0b; background: rgba(245, 158, 11, 0.05)">
+⚠️ <b>Modal Tidak Cukup:</b><br>
+Minimal modal untuk 1 lot ({sym}) adalah <b>Rp {harga*100:,.0f}</b>.
+</div>"""
 
-    st.markdown(f"""
-<div class="{css}">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start">
-        <span class="card-sym">{sym}</span>
-        <span class="{tag_css}">{tag_txt}</span>
-    </div>
-    <p class="card-price">Rp {harga:,.0f}</p>
-    <p style="font-size:0.88rem;color:{chg_col};margin:0 0 6px 0;font-weight:700">
-        {chg_sign}{chg:.2f}% &nbsp;<span style="color:#94a3b8;font-weight:400">Vol {r['vol']:,.0f}</span>
-    </p>
-    
-    <!-- Progress Bar Confidence -->
-    <div style="margin: 8px 0 10px 0;">
-        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#cbd5e1; margin-bottom:3px;">
-            <span>📊 Kekuatan Sinyal</span>
-            <span style="font-weight:700; color:{conf_color}">{confidence}% · {conf_label}</span>
-        </div>
-        <div style="background: rgba(255,255,255,0.1); border-radius: 4px; height: 6px; width: 100%; overflow: hidden;">
-            <div style="background: {conf_color}; width: {confidence}%; height: 100%; border-radius: 4px;"></div>
-        </div>
-    </div>
-    
-    {pills_html}
-    <p style="font-size:0.83rem;color:#e2e8f0;margin:12px 0 0 0;line-height:1.5;">{analisis}</p>
-    {calc_html}
+    card_html = f"""<div class="{css}">
+<div style="display:flex;justify-content:space-between;align-items:flex-start">
+<span class="card-sym">{sym}</span>
+<span class="{tag_css}">{tag_txt}</span>
 </div>
-""", unsafe_allow_html=True)
+<p class="card-price">Rp {harga:,.0f}</p>
+<p style="font-size:0.88rem;color:{chg_col};margin:0 0 6px 0;font-weight:700">
+{chg_sign}{chg:.2f}% &nbsp;<span style="color:#94a3b8;font-weight:400">Vol {r['vol']:,.0f}</span>
+</p>
+<div style="margin: 8px 0 10px 0;">
+<div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#cbd5e1; margin-bottom:3px;">
+<span>📊 Kekuatan Sinyal</span>
+<span style="font-weight:700; color:{conf_color}">{confidence}% · {conf_label}</span>
+</div>
+<div style="background: rgba(255,255,255,0.1); border-radius: 4px; height: 6px; width: 100%; overflow: hidden;">
+<div style="background: {conf_color}; width: {confidence}%; height: 100%; border-radius: 4px;"></div>
+</div>
+</div>
+{pills_html}
+<p style="font-size:0.83rem;color:#e2e8f0;margin:12px 0 0 0;line-height:1.5;">{analisis}</p>
+{calc_html}
+</div>"""
+
+    st.markdown(card_html, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # VIEW TABS & RENDER
