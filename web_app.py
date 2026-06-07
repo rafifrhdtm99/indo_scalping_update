@@ -117,6 +117,14 @@ html, body, [class*="css"] {
     margin-bottom: 16px;
     box-shadow: 0 0 15px rgba(16, 185, 129, 0.15);
 }
+.card-bsjp {
+    background: #1e293b;
+    border: 2px solid #a855f7;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 0 15px rgba(168, 85, 247, 0.15);
+}
 .card-jual {
     background: #1e293b;
     border: 1px solid #ef4444;
@@ -167,6 +175,14 @@ html, body, [class*="css"] {
     padding: 3px 10px;
     font-size: 0.75rem;
     font-weight: 600;
+}
+.tag-purple {
+    background: #a855f7;
+    color: #ffffff;
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
 }
 
 /* Clean Indicator Badges (Pills) */
@@ -553,6 +569,64 @@ def tentukan_sinyal_ara_hunter(ind, harga, min_chg_prev, min_val_miliar):
         return "BELI", alasan, bs
     return "TUNGGU", alasan, bs
 
+def tentukan_sinyal_bsjp(ind, harga, max_rsi, min_val_miliar):
+    if ind is None:
+        return "TUNGGU", ["Data kurang"], 0
+    
+    rsi    = ind.get("RSI", 50)
+    ema9   = ind.get("EMA9", harga)
+    ema21  = ind.get("EMA21", harga)
+    mh     = ind.get("MACD_hist", 0)
+    vol    = ind.get("volume", 0)
+    volma  = ind.get("vol_ma20", vol or 1)
+    value_today = ind.get("value_today", 0)
+    
+    bull   = ema9 > ema21
+    diatas = harga > ema21
+    vspike = vol >= volma * 1.10 if volma > 0 else False
+    cond_val = value_today >= min_val_miliar * 1_000_000_000
+    
+    alasan = []
+    bs = 0
+    
+    if bull:
+        bs += 1
+        alasan.append("EMA9 > EMA21 (Uptrend) ✅")
+    else:
+        alasan.append("EMA9 <= EMA21 (Downtrend) ⚠️")
+        
+    if mh > 0:
+        bs += 1
+        alasan.append("MACD Histogram Positif ✅")
+    else:
+        alasan.append("MACD Histogram Negatif ⚠️")
+        
+    if rsi < max_rsi:
+        bs += 1
+        alasan.append(f"RSI Aman ({rsi:.0f} < {max_rsi}) ✅")
+    else:
+        alasan.append(f"RSI Tinggi ({rsi:.0f} >= {max_rsi}) ⚠️")
+        
+    if vspike:
+        bs += 1
+        alasan.append("Volume Meningkat ✅")
+    else:
+        alasan.append("Volume Lemah ⚠️")
+        
+    if diatas:
+        bs += 1
+        alasan.append("Di atas EMA21 ✅")
+    else:
+        alasan.append("Di bawah EMA21 ⚠️")
+        
+    if cond_val:
+        bs += 1
+    
+    # Sinyal BSJP aktif jika minimal 4 dari 5 kriteria utama terpenuhi dan likuiditas cukup
+    if bs >= 4 and cond_val:
+        return "BSJP", alasan, bs
+    return "TUNGGU", alasan, bs
+
 # ─────────────────────────────────────────────────────────────────────────────
 # CONFIDENCE SCORING HELPERS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -629,6 +703,16 @@ def hitung_confidence_ara(bs):
     else:              label, color = "❌ Sangat Lemah",   "#ef4444"
     return score, label, color
 
+def hitung_confidence_bsjp(bs):
+    score = int(bs * 20)
+    score = max(10, min(100, score))
+    if   score >= 100: label, color = "🔥 Sangat Kuat",   "#a855f7"
+    elif score >= 80:  label, color = "💪 Kuat",           "#c084fc"
+    elif score >= 60:  label, color = "✅ Cukup",          "#d8b4fe"
+    elif score >= 40:  label, color = "⚠️ Lemah",         "#e9d5ff"
+    else:              label, color = "❌ Sangat Lemah",   "#f3e8ff"
+    return score, label, color
+
 # ─────────────────────────────────────────────────────────────────────────────
 # BEGINNER-FRIENDLY TACTICAL ANALYSES (1-2 sentences maximum)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -636,27 +720,90 @@ def buat_analisis_singkat_classic(ind, harga, sinyal, chg):
     if ind is None or not ind:
         return "Data historis kurang mencukupi untuk dianalisis."
     rsi = ind.get("RSI", 50)
+    ema9 = ind.get("EMA9", harga)
+    ema21 = ind.get("EMA21", harga)
+    mh = ind.get("MACD_hist", 0)
+    vol = ind.get("volume", 0)
+    volma = ind.get("vol_ma20", vol or 1)
+    
     if sinyal == "BELI":
-        return f"Saham ini menunjukkan momentum pembalikan tren naik jangka pendek yang terkonfirmasi oleh MACD dan RSI ({rsi:.0f}). Sangat ideal untuk entry beli."
+        alasan = f"Saham ini terdeteksi masuk area beli karena tren jangka pendek menguat (EMA9 > EMA21)."
+        if mh > 0:
+            alasan += " Didukung oleh histogram MACD yang positif (+) menandakan momentum naik bertambah kuat."
+        if vol >= volma * 1.15:
+            alasan += f" Ada lonjakan volume transaksi harian sebesar {(vol/volma - 1)*100:.0f}% di atas rata-rata 20 hari."
+        if rsi < 50:
+            alasan += f" RSI di angka {rsi:.0f} menunjukkan harga belum terlalu mahal (belum jenuh beli)."
+        return alasan
     elif sinyal == "BSJP":
-        return f"Deteksi akumulasi beli di akhir sesi. Sangat cocok dibeli sore ini sebelum pasar tutup untuk dijual kembali besok pagi saat pembukaan."
+        return f"Saham menunjukkan akumulasi beli kuat di akhir sesi dengan RSI {rsi:.0f} dan MACD positif. Sangat direkomendasikan untuk dibeli sore ini menjelang tutup pasar (15:50 WIB) lalu dijual besok pagi saat ada lonjakan pembukaan."
     elif sinyal == "JUAL":
-        return "Tren jangka pendek sedang melemah. Disarankan segera melakukan Jual / Cut Loss untuk menghindari penurunan harga lebih lanjut."
-    return "Kondisi pasar sedang konsolidasi atau arah tren belum jelas. Disarankan untuk tetap menunggu (Wait & See)."
+        alasan = "Tren harga melemah tajam."
+        if ema9 < ema21:
+            alasan += " Garis EMA9 memotong ke bawah EMA21 (Death Cross) menandakan tren turun dimulai."
+        if mh < 0:
+            alasan += " MACD berada di area negatif (-)."
+        if rsi > 70:
+            alasan += f" RSI berada di {rsi:.0f} (jenuh beli), rawan aksi ambil untung (profit taking) oleh trader lain."
+        return alasan + " Disarankan untuk segera Jual/Cut Loss untuk mengamankan modal."
+    return f"Kondisi harga sedang konsolidasi sampingan (sideways). RSI berada di level netral {rsi:.0f}. Disarankan menunggu momentum breakout yang lebih jelas."
 
 def buat_analisis_singkat_bpjs(ind, harga, sinyal, chg, bpjs_min_chg, bpjs_min_val):
     if ind is None or not ind:
         return "Data tidak mencukupi untuk menganalisis taktik BPJS."
+    
+    prev_close = ind.get("prev_close", harga)
+    open_today = ind.get("open_today", harga)
+    prev_volume = ind.get("prev_volume", 0)
+    vol_today = ind.get("volume", 0)
+    ma5 = ind.get("MA5", harga)
+    value_today = ind.get("value_today", 0)
+    
+    chg_prev = ((harga - prev_close) / prev_close * 100) if prev_close > 0 else 0
+    pct_prev = (vol_today / prev_volume * 100) if prev_volume > 0 else 0
+    
     if sinyal == "BELI":
-        return f"Saham sedang naik di atas MA5 dengan volume dan transaksi yang kuat. Sangat bagus untuk Beli Pagi ini dan langsung Jual Sore hari begitu target tercapai."
-    return "Saham belum memenuhi kriteria akumulasi beli pagi. Harap tunggu momentum breakout di atas garis MA5."
+        return f"Saham melesat {chg_prev:+.1f}% (di atas target min {bpjs_min_chg}%) dengan volume pagi mencapai {pct_prev:.0f}% dari total volume kemarin. Didukung transaksi likuid Rp {value_today/1e9:.1f} Miliar dan harga bertahan di atas MA5, menjadikannya sangat kuat untuk taktik Beli Pagi Jual Sore."
+    return f"Saham belum direkomendasikan untuk BPJS karena kenaikan hari ini ({chg_prev:+.1f}%) atau volume pagi hari ini ({pct_prev:.0f}%) belum memenuhi syarat akumulasi minimum."
 
 def buat_analisis_singkat_ara(ind, harga, sinyal, chg, ara_min_chg, ara_min_val):
     if ind is None or not ind:
         return "Data tidak mencukupi untuk menganalisis taktik ARA."
+    
+    prev_volume = ind.get("prev_volume", 0)
+    vol_ma20 = ind.get("vol_ma20", 1)
+    chg_kemarin = ind.get("chg_kemarin", 0.0)
+    value_today = ind.get("value_today", 0)
+    
     if sinyal == "BELI":
-        return "Akumulasi bandar sangat kuat sejak kemarin. Hari ini saham breakout di atas MA5 dengan dukungan volume raksasa. Potensi melesat tinggi hingga batas ARA!"
-    return "Belum terdeteksi adanya pergerakan uang besar (Smart Money) yang cukup dominan untuk mendorong saham melesat ke batas ARA."
+        return f"Terjadi akumulasi volume raksasa kemarin ({prev_volume / vol_ma20:.1f}x lipat dari rata-rata MA20) dengan return kemarin {chg_kemarin:+.1f}%. Hari ini didukung oleh aliran uang besar (Smart Money) senilai Rp {value_today/1e9:.1f} Miliar dan harga sedang breakout di atas MA5. Potensi melesat tinggi mengejar batas ARA!"
+    return f"Saham belum terdeteksi mengalami akumulasi volume bandar kemarin atau aliran dana besar hari ini (saat ini Rp {value_today/1e9:.1f} Miliar, target min {ara_min_val} Miliar)."
+
+def buat_analisis_singkat_bsjp(ind, harga, sinyal, chg, max_rsi, min_val):
+    if ind is None or not ind:
+        return "Data tidak mencukupi untuk menganalisis taktik BSJP."
+    rsi = ind.get("RSI", 50)
+    if sinyal == "BSJP":
+        return f"Saham terdeteksi mengalami akumulasi akhir sesi dengan RSI aman {rsi:.0f} (< {max_rsi}) dan MACD positif. Sangat cocok dibeli sebelum tutup pasar (15:50 WIB) untuk dijual besok pagi."
+    return f"Saham belum direkomendasikan untuk BSJP karena RSI berada di {rsi:.0f} (target < {max_rsi}) atau belum memenuhi kriteria volume akumulasi sore."
+
+def generate_outcome_narrative(entry):
+    sym = entry["symbol"]
+    ret = entry.get("return_pct")
+    outcome = entry.get("outcome")
+    taktik = entry.get("sinyal")
+    t_pct = entry.get("target_pct", 5.0)
+    s_pct = entry.get("sl_pct", 3.0)
+    
+    if outcome is None or ret is None:
+        return f"⏳ **Saham {sym}** ({taktik}): Menunggu data perdagangan hari bursa berikutnya untuk dievaluasi."
+        
+    if "HIT_TARGET" in outcome or "PROFIT" in outcome:
+        return f"🟢 **Saham {sym}** ({taktik}): Terbukti **BERHASIL** karena naik hingga **{ret:+.2f}%** (melewati target TP {t_pct}%). Jika Anda mengikuti saran scanner, Anda pasti cuan! 💰"
+    elif "HIT_SL" in outcome or "LOSS" in outcome:
+        return f"🔴 **Saham {sym}** ({taktik}): **MELESET** karena harga turun hingga **{ret:+.2f}%** (menembus batas SL -{s_pct}%). Tekanan jual pasar lebih kuat hari ini, disiplin cut loss menyelamatkan modal Anda dari kerugian dalam. 🛡️"
+    else:
+        return f"🟡 **Saham {sym}** ({taktik}): Ditutup stabil dengan return **{ret:+.2f}%**."
 
 def hitung_lot(modal, harga):
     if harga <= 0: return 0
@@ -723,7 +870,7 @@ st.sidebar.markdown("## ⚙️ Setelan Utama")
 
 taktik_trading = st.sidebar.selectbox(
     "🎯 Taktik Trading:",
-    ["Swing & Scalping Klasik", "⚡ BPJS Agresif (Custom +2%)", "🎯 ARA Hunter (High Momentum)"]
+    ["Swing & Scalping Klasik", "⚡ BPJS Agresif (Custom +2%)", "🎯 ARA Hunter (High Momentum)", "🟣 BSJP (Beli Sore Jual Pagi)"]
 )
 
 modal_per_saham = st.sidebar.number_input(
@@ -752,6 +899,9 @@ with st.sidebar.expander("⚙️ Setelan Lanjutan", expanded=False):
     
     ara_min_chg = st.slider("🎯 Min Ret Kemarin ARA (%)", 1.0, 8.0, 3.0, 0.5)
     ara_min_val = st.slider("🎯 Min Transaksi ARA (Miliar Rp)", 1, 20, 5, 1)
+    
+    bsjp_max_rsi = st.slider("🟣 Max RSI BSJP", 45, 65, 58, 1)
+    bsjp_min_val = st.slider("🟣 Min Transaksi BSJP (Miliar Rp)", 1, 10, 2, 1)
     
     manual_input = ""
     if "Manual" in mode_saham:
@@ -834,6 +984,9 @@ for sym in symbols:
     elif taktik_trading == "🎯 ARA Hunter (High Momentum)":
         sinyal, alasan, bs_count = tentukan_sinyal_ara_hunter(ind, harga, ara_min_chg, ara_min_val)
         confidence, conf_label, conf_color = hitung_confidence_ara(bs_count)
+    elif taktik_trading == "🟣 BSJP (Beli Sore Jual Pagi)":
+        sinyal, alasan, bs_count = tentukan_sinyal_bsjp(ind, harga, bsjp_max_rsi, bsjp_min_val)
+        confidence, conf_label, conf_color = hitung_confidence_bsjp(bs_count)
     else:
         sinyal, alasan = tentukan_sinyal_classic(ind, harga, sesi_status)
         confidence, conf_label, conf_color = hitung_confidence_classic(ind, harga, sinyal)
@@ -872,7 +1025,7 @@ def render_kartu_pemula(r):
     if sinyal == "BELI":
         css, tag_css, tag_txt = "card-beli", "tag-green", "🟢 BELI"
     elif sinyal == "BSJP":
-        css, tag_css, tag_txt = "card-beli", "tag-green", "🟣 BSJP (Beli Sore)"
+        css, tag_css, tag_txt = "card-bsjp", "tag-purple", "🟣 BSJP (Beli Sore)"
     elif sinyal == "JUAL":
         css, tag_css, tag_txt = "card-jual", "tag-red", "🔴 JUAL / CUT LOSS"
     else:
@@ -936,6 +1089,29 @@ def render_kartu_pemula(r):
         pills_html = f"<div><span class='ind-pill'>{pill_vol_k}</span><span class='ind-pill'>{pill_smart}</span><span class='ind-pill'>{pill_chg_k}</span><span class='ind-pill'>{pill_break}</span><span class='ind-pill'>{pill_support}</span></div>"
         analisis   = buat_analisis_singkat_ara(ind, harga, sinyal, chg, ara_min_chg, ara_min_val)
         
+    elif taktik_trading == "🟣 BSJP (Beli Sore Jual Pagi)":
+        rsi    = ind.get("RSI", 50)
+        ema9   = ind.get("EMA9", harga)
+        ema21  = ind.get("EMA21", harga)
+        mh     = ind.get("MACD_hist", 0)
+        vol    = ind.get("volume", 0)
+        volma  = ind.get("vol_ma20", vol or 1)
+        value_today = ind.get("value_today", 0)
+        
+        cond_rsi = rsi < bsjp_max_rsi
+        cond_bull = ema9 > ema21
+        cond_macd = mh > 0
+        cond_vol = vol >= volma * 1.10 if volma > 0 else False
+        cond_val = value_today >= bsjp_min_val * 1_000_000_000
+        
+        pill_rsi   = f"RSI {rsi:.0f} {'✅' if cond_rsi else '⚠️'}"
+        pill_bull  = f"EMA9>21 {'✅' if cond_bull else '⚠️'}"
+        pill_macd  = f"MACD+ {'✅' if cond_macd else '⚠️'}"
+        pill_vol   = f"Vol Spike {'✅' if cond_vol else '⚠️'}"
+        pill_val   = f"Value {value_today/1e9:.1f}B {'✅' if cond_val else '⚠️'}"
+        
+        pills_html = f"<div><span class='ind-pill'>{pill_rsi}</span><span class='ind-pill'>{pill_bull}</span><span class='ind-pill'>{pill_macd}</span><span class='ind-pill'>{pill_vol}</span><span class='ind-pill'>{pill_val}</span></div>"
+        analisis   = buat_analisis_singkat_bsjp(ind, harga, sinyal, chg, bsjp_max_rsi, bsjp_min_val)
     else:
         rsi      = ind.get("RSI", 50)
         ema9     = ind.get("EMA9", harga)
@@ -1003,6 +1179,36 @@ with tab_dash:
     # Split into Beli/BSJP vs Wait/Sell
     beli_results  = [r for r in results if r["sinyal"] in ("BELI", "BSJP")]
     other_results = [r for r in results if r["sinyal"] not in ("BELI", "BSJP")]
+
+    # Dynamic Trade Plan Execution Guide based on Tactic
+    guide_html = ""
+    if taktik_trading == "Swing & Scalping Klasik":
+        guide_html = """<div style="background: rgba(59, 130, 246, 0.05); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+💡 <b>Panduan Eksekusi - Swing & Scalping Klasik:</b><br>
+• <b>Jam Eksekusi:</b> Beli pagi (09:00 - 09:30 WIB) or sore (14:30 - 15:30 WIB).<br>
+• <b>Caranya:</b> Entry beli saat sinyal 🟢 <b>BELI</b> muncul. Pasang target TP 5% dan SL 3% otomatis di sekuritas Anda. Hold santai 1-5 hari sampai target kena.
+</div>"""
+    elif taktik_trading == "⚡ BPJS Agresif (Custom +2%)":
+        guide_html = """<div style="background: rgba(16, 185, 129, 0.05); border-left: 4px solid #10b981; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+💡 <b>Panduan Eksekusi - BPJS Agresif (Beli Pagi Jual Sore):</b><br>
+• <b>Jam Eksekusi:</b> <b>09:00 - 09:10 WIB</b> (10 menit pertama saat pembukaan bursa).<br>
+• <b>Caranya:</b> Cari saham berstatus 🟢 <b>BELI</b> yang bergerak naik cepat (volume tinggi + bid tebal). HAKA cepat, langsung antrekan jual otomatis di target <b>+2% s.d +3%</b>. Jual sore hari sebelum tutup jika belum tersentuh. Jangan di-hold menginap!
+</div>"""
+    elif taktik_trading == "🎯 ARA Hunter (High Momentum)":
+        guide_html = """<div style="background: rgba(245, 158, 11, 0.05); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+💡 <b>Panduan Eksekusi - ARA Hunter (High Momentum):</b><br>
+• <b>Jam Eksekusi:</b> Buka pagi (09:01 - 09:15 WIB) atau konfirmasi siang (11:15 / 13:30 WIB).<br>
+• <b>Caranya:</b> Cari saham breakout MA5 dengan akumulasi kemarin & smart money masuk hari ini. Batasi pembelian jika harga sudah terbang >20%. Jika saham berhasil mengunci ARA (Auto Reject Atas) di akhir hari, simpan/hold untuk dijual besok pagi saat gap up.
+</div>"""
+    elif taktik_trading == "🟣 BSJP (Beli Sore Jual Pagi)":
+        guide_html = """<div style="background: rgba(168, 85, 247, 0.05); border-left: 4px solid #a855f7; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+💡 <b>Panduan Eksekusi - BSJP (Beli Sore Jual Pagi):</b><br>
+• <b>Jam Eksekusi:</b> <b>15:50 - 16:00 WIB</b> (Pre-closing / beberapa menit menjelang bursa tutup).<br>
+• <b>Caranya:</b> Beli saham bersinyal 🟣 <b>BSJP</b> di sore hari saat harga closing terbentuk. Simpan semalam, lalu langsung jual di keesokan paginya pukul <b>09:00 - 09:05 WIB</b> saat terjadi lonjakan pembukaan (gap up).
+</div>"""
+
+    if guide_html:
+        st.markdown(guide_html, unsafe_allow_html=True)
 
     if beli_results:
         st.markdown('<div class="section-header">🟢 Saham Rekomendasi (Siap Beli)</div>', unsafe_allow_html=True)
@@ -1086,6 +1292,18 @@ with tab_hist:
             c4.metric("💰 Estimasi Keuntungan Realisasi", 
                       f"Rp {total_profit:,.0f}" if total_profit >= 0 else f"-Rp {abs(total_profit):,.0f}",
                       delta_color=prof_color)
+            
+            # Friendly Narrative Outcomes
+            st.markdown("#### 📝 Rapor Kinerja Sinyal Terbaru")
+            latest_evals = [h for h in history if h.get("outcome") is not None]
+            latest_evals.sort(key=lambda x: x["scan_time"], reverse=True)
+            
+            if latest_evals:
+                for entry in latest_evals[:5]:
+                    st.info(generate_outcome_narrative(entry))
+            else:
+                st.info("Belum ada riwayat sinyal yang selesai dievaluasi (menunggu hari bursa berikutnya).")
+            st.markdown("---")
         else:
             st.warning("Belum ada data penutupan hari bursa berikutnya untuk menghitung akurasi sinyal.")
             
