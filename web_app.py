@@ -1001,9 +1001,9 @@ for sym in symbols:
         "conf_label": conf_label, "conf_color": conf_color
     })
 
-# Sort results (BUY signals first)
+# Sort results (BUY signals first, then by highest confidence score)
 urutan = {"BELI": 0, "BSJP": 1, "JUAL": 2, "TUNGGU": 3}
-results.sort(key=lambda x: urutan.get(x["sinyal"], 9))
+results.sort(key=lambda x: (urutan.get(x["sinyal"], 9), -x["confidence"]))
 
 # Auto-save signal history
 new_signals = record_signals(results, modal_per_saham, target_pct, sl_pct)
@@ -1013,7 +1013,7 @@ if new_signals > 0:
 # ─────────────────────────────────────────────────────────────────────────────
 # UI LAYOUT COMPONENT
 # ─────────────────────────────────────────────────────────────────────────────
-def render_kartu_pemula(r):
+def render_kartu_pemula(r, is_top=False):
     sym    = r["symbol"]
     harga  = r["harga"]
     chg    = r["chg"]
@@ -1030,6 +1030,9 @@ def render_kartu_pemula(r):
         css, tag_css, tag_txt = "card-jual", "tag-red", "🔴 JUAL / CUT LOSS"
     else:
         css, tag_css, tag_txt = "card-tunggu", "tag-gray", "⏳ TUNGGU"
+
+    if is_top and sinyal in ("BELI", "BSJP"):
+        tag_txt = "🏆 PILIHAN UTAMA · " + tag_txt
 
     chg_col  = "#10b981" if chg >= 0 else "#ef4444"
     chg_sign = "+" if chg >= 0 else ""
@@ -1215,7 +1218,7 @@ with tab_dash:
         cols = st.columns(2)
         for i, r in enumerate(beli_results):
             with cols[i % 2]:
-                render_kartu_pemula(r)
+                render_kartu_pemula(r, is_top=(i == 0))
         st.markdown("---")
     else:
         st.info("⏳ Belum ada saham yang masuk kriteria beli saat ini. Pasar sedang lesu atau konsolidasi. Silakan perbarui data di sidebar beberapa saat lagi.")
@@ -1226,7 +1229,7 @@ with tab_dash:
             cols2 = st.columns(2)
             for i, r in enumerate(other_results):
                 with cols2[i % 2]:
-                    render_kartu_pemula(r)
+                    render_kartu_pemula(r, is_top=False)
 
     # Simplified summary table
     st.markdown("---")
@@ -1292,20 +1295,21 @@ with tab_hist:
             c4.metric("💰 Estimasi Keuntungan Realisasi", 
                       f"Rp {total_profit:,.0f}" if total_profit >= 0 else f"-Rp {abs(total_profit):,.0f}",
                       delta_color=prof_color)
-            
-            # Friendly Narrative Outcomes
-            st.markdown("#### 📝 Rapor Kinerja Sinyal Terbaru")
-            latest_evals = [h for h in history if h.get("outcome") is not None]
-            latest_evals.sort(key=lambda x: x["scan_time"], reverse=True)
-            
-            if latest_evals:
-                for entry in latest_evals[:5]:
-                    st.info(generate_outcome_narrative(entry))
-            else:
-                st.info("Belum ada riwayat sinyal yang selesai dievaluasi (menunggu hari bursa berikutnya).")
-            st.markdown("---")
         else:
-            st.warning("Belum ada data penutupan hari bursa berikutnya untuk menghitung akurasi sinyal.")
+            c1, c2, c3 = st.columns(3)
+            c1.metric("📊 Total Sinyal", len(history))
+            c2.metric("🎯 Win Rate (BELI)", "0.0%", "0/0 Saham")
+            c3.metric("📈 Rata-rata Return", "0.00%")
+            st.warning("⚠️ Metrik akurasi belum muncul karena seluruh sinyal di bawah masih berjalan (running) dan belum ditutup di hari berikutnya.")
+            
+        st.markdown("---")
+        
+        # Friendly Narrative Outcomes - Always Visible
+        st.markdown("#### 📝 Rapor Kinerja Sinyal Terbaru")
+        sorted_history = sorted(history, key=lambda x: x["scan_time"], reverse=True)
+        for entry in sorted_history[:5]:
+            st.info(generate_outcome_narrative(entry))
+        st.markdown("---")
             
         df_hist = pd.DataFrame(history)
         df_display = df_hist.sort_values(by="scan_time", ascending=False)
