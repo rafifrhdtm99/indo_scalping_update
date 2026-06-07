@@ -319,29 +319,33 @@ def record_signals(results, modal_per_saham, target_pct, sl_pct):
         existing_keys.add(key)
         new_count += 1
 
-        # Kirim Alert Telegram
-        try:
-            target_tp = snap_fraksi(k["ht"]) if k else 0
-            sl_val = snap_fraksi(k["hsl"]) if k else 0
-            modal_val = round(k["modal"]) if k else 0
-            taktik_val = taktik_trading if 'taktik_trading' in globals() else "Scalping"
-            
-            emoji = "🟢" if r["sinyal"] == "BELI" else "🟣" if r["sinyal"] == "BSJP" else "🔴"
-            msg = (
-                f"🚨 *{emoji} SINYAL TRADING BARU TERDETEKSI!* *{r['symbol']}*\n\n"
-                f"• *Aset/Kode:* {r['symbol']}\n"
-                f"• *Taktik:* {taktik_val}\n"
-                f"• *Sinyal:* {r['sinyal']}\n"
-                f"• *Harga Masuk:* Rp {r['harga']:,.0f}\n"
-                f"• *Kekuatan Sinyal:* {r['confidence']}% ({r['conf_label']})\n"
-                f"• *Target TP:* Rp {target_tp:,.0f} (+{target_pct}%)\n"
-                f"• *Batas SL:* Rp {sl_val:,.0f} (-{sl_pct}%)\n"
-                f"• *Rekomendasi:* Beli {r['lot']} lot (Modal: Rp {modal_val:,.0f})\n\n"
-                f"_Waktu Scan: {scan_time} WIB_"
-            )
-            send_telegram_alert(msg)
-        except:
-            pass
+        # Kirim Alert Telegram jika kekuatan sinyal >= 60% (Noise Filtering)
+        if r.get("confidence", 0) >= 60:
+            try:
+                target_tp = snap_fraksi(k["ht"]) if k else 0
+                sl_val = snap_fraksi(k["hsl"]) if k else 0
+                modal_val = round(k["modal"]) if k else 0
+                taktik_val = taktik_trading if 'taktik_trading' in globals() else "Scalping"
+                
+                emoji = "🟢" if r["sinyal"] == "BELI" else "🟣" if r["sinyal"] == "BSJP" else "🔴"
+                web_link = f"https://indo-scalping.streamlit.app/?saham={r['symbol']}"
+                
+                msg = (
+                    f"🚨 *{emoji} SINYAL TRADING BARU TERDETEKSI!* *{r['symbol']}*\n\n"
+                    f"• *Aset/Kode:* {r['symbol']}\n"
+                    f"• *Taktik:* {taktik_val}\n"
+                    f"• *Sinyal:* {r['sinyal']}\n"
+                    f"• *Harga Masuk:* Rp {r['harga']:,.0f}\n"
+                    f"• *Kekuatan Sinyal:* {r['confidence']}% ({r['conf_label']})\n"
+                    f"• *Target TP:* Rp {target_tp:,.0f} (+{target_pct}%)\n"
+                    f"• *Batas SL:* Rp {sl_val:,.0f} (-{sl_pct}%)\n"
+                    f"• *Rekomendasi:* Beli {r['lot']} lot (Modal: Rp {modal_val:,.0f})\n\n"
+                    f"🔍 [Buka Web App & Analisa Detail]({web_link})\n\n"
+                    f"_Waktu Scan: {scan_time} WIB_"
+                )
+                send_telegram_alert(msg)
+            except:
+                pass
 
     save_history(history)
     return new_count
@@ -903,6 +907,78 @@ def fetch_batch_yfinance(syms_tuple):
     return result
 
 # ─────────────────────────────────────────────────────────────────────────────
+# QUERY PARAMETER API ENDPOINT & FILTER
+# ─────────────────────────────────────────────────────────────────────────────
+try:
+    query_params = st.query_params
+except AttributeError:
+    try:
+        query_params = st.experimental_get_query_params()
+        query_params = {k: v[0] for k, v in query_params.items()}
+    except:
+        query_params = {}
+
+# Background Scanning API (Silent Cron Trigger)
+if "action" in query_params and query_params["action"] == "scan":
+    secret_key = query_params.get("key", "")
+    expected_key = "secure_scalping_key"
+    if secret_key == expected_key:
+        symbols_to_scan = LQ45_POPULER
+        # Panggil fetch secara langsung tanpa cache untuk memastikan real-time data
+        all_data = fetch_batch_yfinance(tuple(symbols_to_scan))
+        
+        total_new_signals = 0
+        tactics_to_run = [
+            "Swing & Scalping Klasik",
+            "⚡ BPJS Agresif (Custom +2%)",
+            "🎯 ARA Hunter (High Momentum)",
+            "🟣 BSJP (Beli Sore Jual Pagi)"
+        ]
+        
+        for current_taktik in tactics_to_run:
+            results_taktik = []
+            for sym in symbols_to_scan:
+                df = all_data.get(sym)
+                if df is None or df.empty:
+                    continue
+                ind = hitung_indikator(df)
+                harga = float(df["close"].iloc[-1])
+                prev = float(df["close"].iloc[-2]) if len(df) > 1 else harga
+                vol = float(df["volume"].iloc[-1]) if "volume" in df.columns else 0
+                chg = (harga - prev) / prev * 100 if prev > 0 else 0
+                
+                if current_taktik == "⚡ BPJS Agresif (Custom +2%)":
+                    sinyal, alasan, bs_count = tentukan_sinyal_bpjs_agresif(ind, harga, 2.0, 2)
+                    confidence, conf_label, conf_color = hitung_confidence_bpjs(bs_count)
+                elif current_taktik == "🎯 ARA Hunter (High Momentum)":
+                    sinyal, alasan, bs_count = tentukan_sinyal_ara_hunter(ind, harga, 3.0, 5)
+                    confidence, conf_label, conf_color = hitung_confidence_ara(bs_count)
+                elif current_taktik == "🟣 BSJP (Beli Sore Jual Pagi)":
+                    sinyal, alasan, bs_count = tentukan_sinyal_bsjp(ind, harga, 58, 2)
+                    confidence, conf_label, conf_color = hitung_confidence_bsjp(bs_count)
+                else:
+                    sinyal, alasan = tentukan_sinyal_classic(ind, harga, "buka")
+                    confidence, conf_label, conf_color = hitung_confidence_classic(ind, harga, sinyal)
+                    
+                lot = hitung_lot(1_000_000, harga)
+                k = kalkulator(harga, lot, 5.0, 3.0)
+                
+                results_taktik.append({
+                    "symbol": sym, "harga": harga, "chg": chg, "vol": vol,
+                    "sinyal": sinyal, "alasan": alasan, "ind": ind or {},
+                    "lot": lot, "k": k, "confidence": confidence,
+                    "conf_label": conf_label, "conf_color": conf_color
+                })
+            
+            # Daftarkan nama taktik secara global agar record_signals menggunakannya
+            globals()["taktik_trading"] = current_taktik
+            new_count = record_signals(results_taktik, 1_000_000, 5.0, 3.0)
+            total_new_signals += new_count
+            
+        st.json({"status": "success", "new_signals": total_new_signals})
+        st.stop()
+
+# ─────────────────────────────────────────────────────────────────────────────
 # SIDEBAR CONFIGURATION (Clean & Beginner-Focused)
 # ─────────────────────────────────────────────────────────────────────────────
 st.sidebar.markdown("## ⚙️ Setelan Utama")
@@ -997,6 +1073,12 @@ with st.spinner("📡 Mengambil daftar saham teraktif..."):
         symbols = (raw or LQ45_POPULER)[:max_saham]
 
 symbols = symbols[:max_saham]
+
+# Deteksi parameter filter saham (Deep-Linking dari Telegram)
+query_saham = query_params.get("saham", "")
+if query_saham:
+    symbols = [query_saham.strip().upper()]
+    st.info(f"🔍 **Menampilkan fokus emiten:** `{query_saham.upper()}`. [Tampilkan Semua Saham (Clear Filter)](/)")
 
 with st.spinner(f"📥 Mengunduh data pasar untuk {len(symbols)} saham..."):
     all_data = fetch_batch_yfinance(tuple(symbols))
