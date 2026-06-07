@@ -117,8 +117,10 @@ def record_signals(results, modal_per_saham, target_pct, sl_pct, current_taktik)
                 target_tp = snap_fraksi(k["ht"]) if k else 0
                 sl_val = snap_fraksi(k["hsl"]) if k else 0
                 modal_val = round(k["modal"]) if k else 0
+                import urllib.parse
+                taktik_encoded = urllib.parse.quote(current_taktik)
                 emoji = "🟢" if r["sinyal"] == "BELI" else "🟣" if r["sinyal"] == "BSJP" else "🔴"
-                web_link = f"https://indo-scalping.streamlit.app/?saham={r['symbol']}"
+                web_link = f"https://indo-scalping.streamlit.app/?saham={r['symbol']}&taktik={taktik_encoded}"
                 
                 msg = (
                     f"🚨 *{emoji} SINYAL TRADING BARU TERDETEKSI!* *{r['symbol']}*\n\n"

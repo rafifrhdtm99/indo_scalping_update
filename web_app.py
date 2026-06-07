@@ -327,8 +327,10 @@ def record_signals(results, modal_per_saham, target_pct, sl_pct):
                 modal_val = round(k["modal"]) if k else 0
                 taktik_val = taktik_trading if 'taktik_trading' in globals() else "Scalping"
                 
+                import urllib.parse
+                taktik_encoded = urllib.parse.quote(taktik_val)
                 emoji = "🟢" if r["sinyal"] == "BELI" else "🟣" if r["sinyal"] == "BSJP" else "🔴"
-                web_link = f"https://indo-scalping.streamlit.app/?saham={r['symbol']}"
+                web_link = f"https://indo-scalping.streamlit.app/?saham={r['symbol']}&taktik={taktik_encoded}"
                 
                 msg = (
                     f"🚨 *{emoji} SINYAL TRADING BARU TERDETEKSI!* *{r['symbol']}*\n\n"
@@ -987,9 +989,16 @@ if "action" in query_params and query_params["action"] == "scan":
 # ─────────────────────────────────────────────────────────────────────────────
 st.sidebar.markdown("## ⚙️ Setelan Utama")
 
+taktik_options = ["Swing & Scalping Klasik", "⚡ BPJS Agresif (Custom +2%)", "🎯 ARA Hunter (High Momentum)", "🟣 BSJP (Beli Sore Jual Pagi)"]
+query_taktik = query_params.get("taktik", "")
+default_taktik_index = 0
+if query_taktik in taktik_options:
+    default_taktik_index = taktik_options.index(query_taktik)
+
 taktik_trading = st.sidebar.selectbox(
     "🎯 Taktik Trading:",
-    ["Swing & Scalping Klasik", "⚡ BPJS Agresif (Custom +2%)", "🎯 ARA Hunter (High Momentum)", "🟣 BSJP (Beli Sore Jual Pagi)"]
+    taktik_options,
+    index=default_taktik_index
 )
 
 modal_per_saham = st.sidebar.number_input(
