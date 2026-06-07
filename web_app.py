@@ -893,15 +893,7 @@ def render_kartu(r):
         pill_vol = f"Vol Pagi {pct_prev:.0f}% {'✅' if cond_vol else '⚠️'}"
         pill_val = f"Value {value_today/1e9:.1f}B {'✅' if cond_val else '⚠️'}"
         
-        pills_html = f"""
-        <div>
-            <span class="ind-pill">{pill_chg}</span>
-            <span class="ind-pill">{pill_ma5}</span>
-            <span class="ind-pill">{pill_green}</span>
-            <span class="ind-pill">{pill_vol}</span>
-            <span class="ind-pill">{pill_val}</span>
-        </div>
-        """
+        pills_html = f"<div><span class='ind-pill'>{pill_chg}</span><span class='ind-pill'>{pill_ma5}</span><span class='ind-pill'>{pill_green}</span><span class='ind-pill'>{pill_vol}</span><span class='ind-pill'>{pill_val}</span></div>"
         analisis = buat_analisis_singkat_bpjs(ind, harga, sinyal, chg, bpjs_min_chg, bpjs_min_val)
     else:
         rsi      = ind.get("RSI",0)
@@ -911,14 +903,7 @@ def render_kartu(r):
         mh       = ind.get("MACD_hist",0)
         rsi_col  = "#ef4444" if rsi>70 else ("#22c55e" if rsi<40 else "#f59e0b")
         
-        pills_html = f"""
-        <div>
-            <span class="ind-pill">RSI <b style="color:{rsi_col}">{rsi:.0f}</b></span>
-            <span class="ind-pill">{'EMA9>21 ✅' if ema9>ema21 else 'EMA9<21 ⚠️'}</span>
-            <span class="ind-pill">{'MACD+ ✅' if mh>0 else 'MACD- ⚠️'}</span>
-            <span class="ind-pill">EMA50 <b style="color:{'#22c55e' if harga>ema50 else '#ef4444'}">{ema50:.0f}</b></span>
-        </div>
-        """
+        pills_html = f"<div><span class='ind-pill'>RSI <b style='color:{rsi_col}'>{rsi:.0f}</b></span><span class='ind-pill'>{'EMA9>21 ✅' if ema9>ema21 else 'EMA9<21 ⚠️'}</span><span class='ind-pill'>{'MACD+ ✅' if mh>0 else 'MACD- ⚠️'}</span><span class='ind-pill'>EMA50 <b style='color:{\"#22c55e\" if harga>ema50 else \"#ef4444\"}'>{ema50:.0f}</b></span></div>"
         analisis = buat_analisis_singkat(ind, harga, sinyal, chg)
 
     confidence = r.get("confidence", 50)
@@ -926,29 +911,29 @@ def render_kartu(r):
     conf_color = r.get("conf_color", "#cbd5e1")
 
     st.markdown(f"""
-    <div class="{css}">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start">
-            <span class="card-sym">{sym}</span>
-            <span class="{tag_css}">{tag_txt}</span>
-        </div>
-        <p class="card-price">Rp {harga:,.0f}</p>
-        <p style="font-size:0.88rem;color:{chg_col};margin:0 0 6px 0;font-weight:700">
-            {chg_sign}{chg:.2f}% &nbsp;<span style="color:#475569;font-weight:400">Vol {r['vol']:,.0f}</span>
-        </p>
-        <!-- Progress Bar Confidence -->
-        <div style="margin: 8px 0 10px 0;">
-            <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#cbd5e1; margin-bottom:3px;">
-                <span>📊 Confidence Sinyal</span>
-                <span style="font-weight:700; color:{conf_color}">{confidence}% · {conf_label}</span>
-            </div>
-            <div style="background: rgba(255,255,255,0.1); border-radius: 4px; height: 6px; width: 100%; overflow: hidden;">
-                <div style="background: {conf_color}; width: {confidence}%; height: 100%; border-radius: 4px;"></div>
-            </div>
-        </div>
-        {pills_html}
-        <p style="font-size:0.78rem;color:#cbd5e1;margin:12px 0 0 0;line-height:1.5;">{analisis}</p>
+<div class="{css}">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <span class="card-sym">{sym}</span>
+        <span class="{tag_css}">{tag_txt}</span>
     </div>
-    """, unsafe_allow_html=True)
+    <p class="card-price">Rp {harga:,.0f}</p>
+    <p style="font-size:0.88rem;color:{chg_col};margin:0 0 6px 0;font-weight:700">
+        {chg_sign}{chg:.2f}% &nbsp;<span style="color:#475569;font-weight:400">Vol {r['vol']:,.0f}</span>
+    </p>
+    <!-- Progress Bar Confidence -->
+    <div style="margin: 8px 0 10px 0;">
+        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#cbd5e1; margin-bottom:3px;">
+            <span>📊 Confidence Sinyal</span>
+            <span style="font-weight:700; color:{conf_color}">{confidence}% · {conf_label}</span>
+        </div>
+        <div style="background: rgba(255,255,255,0.1); border-radius: 4px; height: 6px; width: 100%; overflow: hidden;">
+            <div style="background: {conf_color}; width: {confidence}%; height: 100%; border-radius: 4px;"></div>
+        </div>
+    </div>
+    {pills_html}
+    <p style="font-size:0.78rem;color:#cbd5e1;margin:12px 0 0 0;line-height:1.5;">{analisis}</p>
+</div>
+""", unsafe_allow_html=True)
 
 
     # Kalkulator
