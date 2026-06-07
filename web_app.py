@@ -29,11 +29,33 @@ FEE_JUAL      = 0.0020
 HISTORY_FILE  = os.path.join(os.path.dirname(__file__), "signal_history.json")
 
 LQ45_POPULER = [
-    "BBCA","BBRI","BMRI","TLKM","ASII","GOTO","BREN","AMMN","MDKA","ANTM",
-    "UNVR","ICBP","INDF","KLBF","SIDO","MIKA","HEAL","ACES","MAPI","ERAA",
-    "ADRO","PTBA","INCO","TINS","PGAS","AKRA","SMGR","INTP","JSMR","MEDC",
-    "BSDE","CTRA","PWON","SMRA","KIJA","EMTK","MNCN","SCMA","ESSA","SRTG",
-    "BULL","BRPT","BRMS","DEWA","BNBR","FILM","DGNS","MTDL","WIKA","WSKT"
+    # --- BLUE CHIPS & LARGE CAP ---
+    "BBCA", "BBRI", "BMRI", "BBNI", "TLKM", "ASII", "GOTO", "BREN", "AMMN", "ANTM",
+    "UNVR", "ICBP", "INDF", "KLBF", "SIDO", "ASRI", "BSDE", "CTRA", "PWON", "SMRA",
+    # --- BANKING & FINANCE (CONV & DIGITAL) ---
+    "BBTN", "BRIS", "BDMN", "ARTO", "BBYB", "BBHI", "MEGA", "CFIN", "ADMF", "PNBN",
+    # --- ENERGY, OIL, & GAS ---
+    "ADRO", "PTBA", "ITMG", "HRUM", "MEDC", "ELSA", "ENRG", "PGAS", "AKRA", "INDY",
+    "PGEO", "KEEN", "ADMR", "GEMS", "RAJA", "TOBA", "APEX",
+    # --- METALS, MINERALS, & MINING ---
+    "INCO", "TINS", "MDKA", "BRMS", "MBMA", "NCKL", "BUMI", "DEWA", "DOID", "KKGI",
+    # --- INFRASTRUCTURE & CONSTRUCTION ---
+    "JSMR", "ADHI", "PTPP", "WIKA", "WSKT", "SSIA", "META", "BALI", "TOWR", "TBIG",
+    # --- RETAIL, HEALTHCARE, & TOURISM ---
+    "ACES", "MAPI", "ERAA", "MAPA", "LPPF", "RALS", "MIKA", "HEAL", "SILO", "PANR",
+    # --- CONSUMER STAPLES & AGRICULTURE ---
+    "MYOR", "ROTI", "ULTJ", "CPIN", "JPFA", "AALI", "LSIP", "SSMS", "TAPG", "DSNG",
+    # --- BASIC MATERIALS & CHEMICALS ---
+    "SMGR", "INTP", "ESSA", "SRTG", "BRPT", "TPIA", "INKP", "TKIM", "UNTR", "GJTL",
+    "AUTO", "SMSM", "MASA", "IMAS", "WOOD",
+    # --- PROPERTIES & URBAN DEVELOPMENT ---
+    "KIJA", "DILD", "DMAS", "MTLA", "PPRO",
+    # --- TECHNOLOGY & DIGITAL MEDIA ---
+    "EMTK", "MNCN", "SCMA", "BUKA", "WIRG", "KIOS", "VKTR",
+    # --- LOGISTICS & SHIPPING ---
+    "ASSA", "SMDR", "BIRD", "BULL", "TMAS", "HAIS", "PSSI", "TPMA", "WINS",
+    # --- MOMENTUM & POPULAR MID-CAPS ---
+    "FILM", "DGNS", "MTDL", "BNBR", "LPKR", "MPPA", "MLPL"
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
