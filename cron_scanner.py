@@ -389,22 +389,26 @@ def fetch_batch_yfinance(symbols):
         raw = yf.download(tickers, period="6mo", interval="1d", auto_adjust=True, progress=False, threads=True)
         if raw.empty:
             return {}
-        if len(symbols) == 1:
-            df = raw.copy()
-            df.columns = [c.lower() for c in df.columns]
-            df = df.dropna()
-            if len(df) >= 20:
-                result[symbols[0]] = df
-        else:
-            for sym in symbols:
-                try:
-                    df = raw.xs(f"{sym}.JK", axis=1, level=1).copy()
-                    df.columns = [c.lower() for c in df.columns]
-                    df = df.dropna()
-                    if len(df) >= 20:
-                        result[sym] = df
-                except:
-                    continue
+            
+        is_multi = isinstance(raw.columns, pd.MultiIndex)
+        
+        for sym in symbols:
+            try:
+                ticker_key = f"{sym}.JK"
+                if is_multi:
+                    if ticker_key in raw.columns.levels[1]:
+                        df = raw.xs(ticker_key, axis=1, level=1).copy()
+                    else:
+                        continue
+                else:
+                    df = raw.copy()
+                
+                df.columns = [c.lower() for c in df.columns]
+                df = df.dropna()
+                if len(df) >= 20:
+                    result[sym] = df
+            except:
+                continue
     except Exception as e:
         print(f"Error fetching data: {e}")
     return result
