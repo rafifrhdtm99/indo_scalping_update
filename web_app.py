@@ -1032,6 +1032,7 @@ modal_per_saham = st.sidebar.number_input(
 # Advanced parameters collapsed to keep it beginner-friendly
 with st.sidebar.expander("⚙️ Setelan Lanjutan", expanded=False):
     mode_saham = st.radio("📊 Sumber Saham:", [
+        "🤖 Auto (Rekomendasi AI)",
         "🔥 Top Gainer (GoAPI)",
         "📉 Top Loser / Rebound (GoAPI)",
         "🌊 Trending Volume (GoAPI)",
@@ -1039,7 +1040,12 @@ with st.sidebar.expander("⚙️ Setelan Lanjutan", expanded=False):
         "✏️ Manual"
     ], index=0)
     
-    max_saham = st.slider("📋 Jumlah Saham", 5, 50, 20)
+    use_auto_count = st.checkbox("📋 Gunakan Jumlah Saham Auto", value=True, help="Menyesuaikan jumlah pemindaian saham secara optimal berdasarkan taktik yang Anda pilih.")
+    if use_auto_count:
+        st.caption("🤖 *Jumlah saham ditentukan secara otomatis oleh AI.*")
+        max_saham = 20
+    else:
+        max_saham = st.slider("📋 Jumlah Saham", 5, len(LQ45_POPULER), 20)
     
     target_pct = st.slider("🎯 Target Profit (%)", 1.0, 20.0, 5.0, 0.5)
     sl_pct     = st.slider("🛑 Stop Loss (%)", 1.0, 10.0, 3.0, 0.5)
@@ -1093,14 +1099,29 @@ st.markdown(f'<div class="{css_map[sesi_status]}">{sesi_label} &nbsp;|&nbsp; �
 # DATA PIPELINE EXECUTION
 # ─────────────────────────────────────────────────────────────────────────────
 with st.spinner("📡 Mengambil daftar saham teraktif..."):
-    if "Manual" in mode_saham:
+    # Resolusi Auto Mode
+    resolved_mode = mode_saham
+    if mode_saham == "🤖 Auto (Rekomendasi AI)":
+        if taktik_trading in ["Swing & Scalping Klasik", "🟣 BSJP (Beli Sore Jual Pagi)"]:
+            resolved_mode = "💎 LQ45 + Populer (Offline)"
+        else:
+            resolved_mode = "🔥 Top Gainer (GoAPI)"
+            
+    # Resolusi Auto Count
+    if use_auto_count:
+        if "LQ45" in resolved_mode:
+            max_saham = 30
+        else:
+            max_saham = 20
+
+    if "Manual" in resolved_mode:
         symbols = [s.strip().upper() for s in manual_input.split(",") if s.strip()]
-    elif "LQ45" in mode_saham:
+    elif "LQ45" in resolved_mode:
         symbols = LQ45_POPULER[:max_saham]
-    elif "Gainer" in mode_saham:
+    elif "Gainer" in resolved_mode:
         raw = fetch_watchlist_goapi("gainer")
         symbols = (raw or LQ45_POPULER)[:max_saham]
-    elif "Loser" in mode_saham:
+    elif "Loser" in resolved_mode:
         raw = fetch_watchlist_goapi("loser")
         symbols = (raw or LQ45_POPULER)[:max_saham]
     else:
