@@ -263,6 +263,21 @@ def save_history(history):
     except:
         return False
 
+def send_telegram_alert(message):
+    token = "8520698282:AAF40Cj54M8xX4sPkILJKT-VTBQ43aJ6VdU"
+    chat_id = "6905606117"
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": message,
+        "parse_mode": "Markdown"
+    }
+    try:
+        response = requests.post(url, json=payload, timeout=10)
+        return response.status_code == 200
+    except:
+        return False
+
 def record_signals(results, modal_per_saham, target_pct, sl_pct):
     history   = load_history()
     now       = datetime.now(WIB)
@@ -303,6 +318,30 @@ def record_signals(results, modal_per_saham, target_pct, sl_pct):
         history.append(entry)
         existing_keys.add(key)
         new_count += 1
+
+        # Kirim Alert Telegram
+        try:
+            target_tp = snap_fraksi(k["ht"]) if k else 0
+            sl_val = snap_fraksi(k["hsl"]) if k else 0
+            modal_val = round(k["modal"]) if k else 0
+            taktik_val = taktik_trading if 'taktik_trading' in globals() else "Scalping"
+            
+            emoji = "🟢" if r["sinyal"] == "BELI" else "🟣" if r["sinyal"] == "BSJP" else "🔴"
+            msg = (
+                f"🚨 *{emoji} SINYAL TRADING BARU TERDETEKSI!* *{r['symbol']}*\n\n"
+                f"• *Aset/Kode:* {r['symbol']}\n"
+                f"• *Taktik:* {taktik_val}\n"
+                f"• *Sinyal:* {r['sinyal']}\n"
+                f"• *Harga Masuk:* Rp {r['harga']:,.0f}\n"
+                f"• *Kekuatan Sinyal:* {r['confidence']}% ({r['conf_label']})\n"
+                f"• *Target TP:* Rp {target_tp:,.0f} (+{target_pct}%)\n"
+                f"• *Batas SL:* Rp {sl_val:,.0f} (-{sl_pct}%)\n"
+                f"• *Rekomendasi:* Beli {r['lot']} lot (Modal: Rp {modal_val:,.0f})\n\n"
+                f"_Waktu Scan: {scan_time} WIB_"
+            )
+            send_telegram_alert(msg)
+        except:
+            pass
 
     save_history(history)
     return new_count
