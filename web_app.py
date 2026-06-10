@@ -451,7 +451,7 @@ def send_telegram_alert(token, chat_id, r, tf, target_pct, sl_pct):
 # ─────────────────────────────────────────────────────────────────────────────
 # FUNGSI ANALISIS & SINYAL
 # ─────────────────────────────────────────────────────────────────────────────
-def hitung_confidence(ind, harga, sinyal, bsjp_metrics=None, taktik="🟣 BSJP (Beli Sore Jual Pagi)"):
+def hitung_confidence(ind, harga, sinyal, bsjp_metrics=None, strategi="🟣 BSJP (Beli Sore)"):
     if ind is None:
         return 25, "❓ Data kurang", "#6b7280"
     if bsjp_metrics:
@@ -468,7 +468,7 @@ def hitung_confidence(ind, harga, sinyal, bsjp_metrics=None, taktik="🟣 BSJP (
     else:             label, color = "❌ Sangat Lemah",   "#ef4444"
     return score, label, color
 
-def buat_analisis_singkat(ind, harga, sinyal, chg, bsjp_metrics=None, taktik="🟣 BSJP (Beli Sore Jual Pagi)", is_owner=False):
+def buat_analisis_singkat(ind, harga, sinyal, chg, bsjp_metrics=None, strategi="🟣 BSJP (Beli Sore)", is_owner=False):
     if ind is None or not ind:
         return "Data historis tidak mencukupi untuk melakukan analisis teknikal."
     if bsjp_metrics:
@@ -479,22 +479,22 @@ def buat_analisis_singkat(ind, harga, sinyal, chg, bsjp_metrics=None, taktik="�
             unmet_list = [k for k, v in bsjp_metrics.items() if not v]
             if sinyal in ("BELI", "BSJP"):
                 return (
-                    f"🌟 Saham memenuhi **seluruh kriteria {taktik}**! Kenaikan {chg:.1f}% sehat, "
+                    f"🌟 Saham memenuhi **seluruh kriteria {strategi}**! Kenaikan {chg:.1f}% sehat, "
                     f"kriteria terpenuhi: {', '.join(met_list)}."
                 )
             else:
                 missing_str = ", ".join(unmet_list)
                 return (
-                    f"⏳ Belum memenuhi syarat {taktik}. "
+                    f"⏳ Belum memenuhi syarat {strategi}. "
                     f"Kriteria terpenuhi: {', '.join(met_list)}. "
                     f"Kriteria kurang: <span style='color:#ef4444;font-weight:bold;'>{missing_str}</span>."
                 )
         else:
             # Mode Privat (Public View) - Sembunyikan detail nama kriteria
             if sinyal in ("BELI", "BSJP"):
-                return f"🌟 Saham memenuhi **seluruh kriteria analisis** ({met_criteria}/{total_criteria}) untuk taktik yang dipilih. Rekomendasi masuk aktif."
+                return f"🌟 Saham memenuhi **seluruh kriteria analisis** ({met_criteria}/{total_criteria}) untuk strategi yang dipilih. Rekomendasi masuk aktif."
             else:
-                return f"⏳ Saham memenuhi **{met_criteria} dari {total_criteria} kriteria** rahasia taktik ini. Menunggu konfirmasi penuh."
+                return f"⏳ Saham memenuhi **{met_criteria} dari {total_criteria} kriteria** rahasia strategi ini. Menunggu konfirmasi penuh."
     return "Sedang memproses analisis..."
 
 def hitung_lot(modal, harga):
@@ -564,7 +564,7 @@ def hitung_indikator(df):
     except:
         return None
 
-def tentukan_sinyal(ind, harga, prev, sesi_status, taktik="🟣 BSJP (Beli Sore Jual Pagi)"):
+def tentukan_sinyal(ind, harga, prev, sesi_status, strategi="🟣 BSJP (Beli Sore)"):
     if ind is None:
         return "TUNGGU", ["Data kurang"], {}
     rsi    = ind.get("RSI", 50)
@@ -586,45 +586,66 @@ def tentukan_sinyal(ind, harga, prev, sesi_status, taktik="🟣 BSJP (Beli Sore 
     metrics = {}
     signal_ok = False
 
-    if taktik == "Swing & Scalping Klasik":
-        c_rsi         = 30 <= rsi <= 65
-        c_trend       = ema9 > ema21
-        c_macd        = mh > 0
+    if strategi == "🟢 BPJS Sesi 1 (Pagi)":
+        c_vol_spike   = vol >= 1.5 * volma
         c_value       = val_today >= 5_000_000_000
-        c_vol_spike   = vol >= 1.0 * volma
-        c_chg         = chg > 0.0
-        
-        signal_ok = c_rsi and c_trend and c_macd and c_value and c_vol_spike and c_chg
-        metrics = {
-            "RSI Sehat (30-65)": c_rsi,
-            "Tren Bullish (EMA9>EMA21)": c_trend,
-            "MACD Histogram > 0": c_macd,
-            "Nilai Transaksi Hari Ini (>=5M)": c_value,
-            "Volume Harian (>=1.0x MA20)": c_vol_spike,
-            "Kenaikan Positif (>0%)": c_chg
-        }
-        alasan = [k for k, v in metrics.items() if v]
-
-    elif taktik == "⚡ BPJS Agresif (Custom +2%)":
-        c_chg         = 2.0 <= chg <= 15.0
-        c_rsi         = 40 <= rsi <= 70
+        c_rsi         = 30 <= rsi <= 60
         c_trend       = ema9 > ema21
         c_macd        = mh > 0
-        c_value       = val_today >= 10_000_000_000
-        c_vol_spike   = vol >= 1.3 * volma
+        c_chg         = 2.0 <= chg <= 15.0
         
-        signal_ok = c_chg and c_rsi and c_trend and c_macd and c_value and c_vol_spike
+        signal_ok = c_vol_spike and c_value and c_rsi and c_trend and c_macd and c_chg
         metrics = {
-            "Kenaikan Agresif (2%-15%)": c_chg,
-            "RSI Kuat (40-70)": c_rsi,
+            "Lonjakan Volume (>=1.5x MA20)": c_vol_spike,
+            "Nilai Transaksi Hari Ini (>=5M)": c_value,
+            "RSI Sehat (30-60)": c_rsi,
             "Tren Bullish (EMA9>EMA21)": c_trend,
             "MACD Histogram > 0": c_macd,
-            "Nilai Transaksi Hari Ini (>=10M)": c_value,
-            "Lonjakan Volume (>=1.3x MA20)": c_vol_spike
+            "Kenaikan Pagi (2%-15%)": c_chg
         }
         alasan = [k for k, v in metrics.items() if v]
 
-    elif taktik == "🎯 ARA Hunter (High Momentum)":
+    elif strategi == "🟡 BPJS Sesi 2 (Siang)":
+        c_vol_spike   = vol >= 1.3 * volma
+        c_value       = val_today >= 10_000_000_000
+        c_rsi         = 40 <= rsi <= 65
+        c_trend       = ema9 > ema21
+        c_macd        = mh > 0
+        c_chg         = 3.0 <= chg <= 20.0
+        
+        signal_ok = c_vol_spike and c_value and c_rsi and c_trend and c_macd and c_chg
+        metrics = {
+            "Lonjakan Volume (>=1.3x MA20)": c_vol_spike,
+            "Nilai Transaksi Hari Ini (>=10M)": c_value,
+            "RSI Sehat (40-65)": c_rsi,
+            "Tren Bullish (EMA9>EMA21)": c_trend,
+            "MACD Histogram > 0": c_macd,
+            "Kenaikan Siang (3%-20%)": c_chg
+        }
+        alasan = [k for k, v in metrics.items() if v]
+
+    elif strategi == "🟣 BSJP (Beli Sore)":
+        c_vol_spike   = vol >= 1.2 * volma
+        c_value       = val_today >= 20_000_000_000
+        c_volma20     = volma >= 1_000_000
+        c_trend_med   = ma20 >= ma50
+        c_trend_short = ma5 >= ma20
+        c_min_chg     = chg > 5.0
+        c_max_chg     = chg <= (ara_limit - 1.0)
+        
+        signal_ok = c_vol_spike and c_value and c_volma20 and c_trend_med and c_trend_short and c_min_chg and c_max_chg
+        metrics = {
+            "Lonjakan Volume (>=1.2x MA20)": c_vol_spike,
+            "Nilai Transaksi Hari Ini (>=20M)": c_value,
+            "Rata-rata Vol MA20 >= 1 Juta": c_volma20,
+            "Tren Menengah (MA20 >= MA50)": c_trend_med,
+            "Momentum Pendek (MA5 >= MA20)": c_trend_short,
+            "Kenaikan Sore (>5%)": c_min_chg,
+            "Kenaikan <= ARA": c_max_chg
+        }
+        alasan = [k for k, v in metrics.items() if v]
+
+    elif strategi == "🔥 ARA Hunter":
         # Min return dinamis untuk ARA hunter
         if prev < 50:    min_chg = 6.0
         elif prev <= 200: min_chg = 25.0
@@ -649,30 +670,47 @@ def tentukan_sinyal(ind, harga, prev, sesi_status, taktik="🟣 BSJP (Beli Sore 
         }
         alasan = [k for k, v in metrics.items() if v]
 
-    elif taktik == "🟣 BSJP (Beli Sore Jual Pagi)":
-        c_vol_spike   = vol >= 1.2 * volma
-        c_value       = val_today >= 20_000_000_000
-        c_volma20     = volma >= 1_000_000
-        c_trend_med   = ma20 >= ma50
-        c_trend_short = ma5 >= ma20
-        c_min_chg     = chg > 5.0
-        c_max_chg     = chg <= (ara_limit - 1.0)
+    elif strategi == "Swing & Scalping Klasik":
+        c_rsi         = 30 <= rsi <= 65
+        c_trend       = ema9 > ema21
+        c_macd        = mh > 0
+        c_value       = val_today >= 5_000_000_000
+        c_vol_spike   = vol >= 1.0 * volma
+        c_chg         = chg > 0.0
         
-        signal_ok = c_vol_spike and c_value and c_volma20 and c_trend_med and c_trend_short and c_min_chg and c_max_chg
+        signal_ok = c_rsi and c_trend and c_macd and c_value and c_vol_spike and c_chg
         metrics = {
-            "Lonjakan Volume (>=1.2x MA20)": c_vol_spike,
-            "Nilai Transaksi Hari Ini (>=20M)": c_value,
-            "Rata-rata Vol MA20 >= 1 Juta": c_volma20,
-            "Tren Menengah (MA20 >= MA50)": c_trend_med,
-            "Momentum Pendek (MA5 >= MA20)": c_trend_short,
-            "Kenaikan Sore (>5%)": c_min_chg,
-            "Kenaikan <= ARA": c_max_chg
+            "RSI Sehat (30-65)": c_rsi,
+            "Tren Bullish (EMA9>EMA21)": c_trend,
+            "MACD Histogram > 0": c_macd,
+            "Nilai Transaksi Hari Ini (>=5M)": c_value,
+            "Volume Harian (>=1.0x MA20)": c_vol_spike,
+            "Kenaikan Positif (>0%)": c_chg
+        }
+        alasan = [k for k, v in metrics.items() if v]
+
+    elif strategi == "⚡ BPJS Agresif (Custom +2%)":
+        c_chg         = 2.0 <= chg <= 15.0
+        c_rsi         = 40 <= rsi <= 70
+        c_trend       = ema9 > ema21
+        c_macd        = mh > 0
+        c_value       = val_today >= 10_000_000_000
+        c_vol_spike   = vol >= 1.3 * volma
+        
+        signal_ok = c_chg and c_rsi and c_trend and c_macd and c_value and c_vol_spike
+        metrics = {
+            "Kenaikan Agresif (2%-15%)": c_chg,
+            "RSI Kuat (40-70)": c_rsi,
+            "Tren Bullish (EMA9>EMA21)": c_trend,
+            "MACD Histogram > 0": c_macd,
+            "Nilai Transaksi Hari Ini (>=10M)": c_value,
+            "Lonjakan Volume (>=1.3x MA20)": c_vol_spike
         }
         alasan = [k for k, v in metrics.items() if v]
 
     # Kita kembalikan sinyal BPJS atau BSJP atau ARA Hunter atau TUNGGU
     if signal_ok:
-        if taktik == "🟣 BSJP (Beli Sore Jual Pagi)":
+        if strategi == "🟣 BSJP (Beli Sore)":
             return "BSJP", alasan, metrics
         else:
             return "BELI", alasan, metrics
@@ -697,29 +735,36 @@ if st.sidebar.button("🔄 Refresh Data", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
 
-st.sidebar.markdown("## ⚙️ Setelan Utama")
+st.sidebar.markdown("## ⚙️ Pengaturan")
 
-# 🎯 Taktik Trading
-taktik = st.sidebar.selectbox(
-    "🎯 Taktik Trading:",
+# 📊 Strategi Analisis
+st.sidebar.markdown("### 📊 Strategi Analisis")
+strategi = st.sidebar.radio(
+    "Pilih Metode Analisis:",
     [
+        "🟢 BPJS Sesi 1 (Pagi)",
+        "🟡 BPJS Sesi 2 (Siang)",
+        "🟣 BSJP (Beli Sore)",
+        "🔥 ARA Hunter",
         "Swing & Scalping Klasik",
-        "⚡ BPJS Agresif (Custom +2%)",
-        "🎯 ARA Hunter (High Momentum)",
-        "🟣 BSJP (Beli Sore Jual Pagi)"
+        "⚡ BPJS Agresif (Custom +2%)"
     ],
-    index=3  # Default: BSJP
+    index=2  # Default: BSJP
 )
 
-# Info Box Taktik (Clean & Simple)
-if taktik == "Swing & Scalping Klasik":
-    st.sidebar.info("💡 **Swing & Scalping Klasik**: Skrining dengan kombinasi indikator tren dan momentum seimbang, cocok untuk pemula dan swing trading jangka pendek.")
-elif taktik == "⚡ BPJS Agresif (Custom +2%)":
-    st.sidebar.info("💡 **BPJS Agresif**: Skrining saham momentum tinggi dengan minimal kenaikan hari ini +2% untuk trading kilat (scalping agresif).")
-elif taktik == "🎯 ARA Hunter (High Momentum)":
-    st.sidebar.info("💡 **ARA Hunter**: Skrining saham ber-volume masif yang sedang menuju/berpotensi mengunci kenaikan tertinggi (ARA).")
-elif taktik == "🟣 BSJP (Beli Sore Jual Pagi)":
+# Info Box Strategi (Clean & Simple)
+if strategi == "🟢 BPJS Sesi 1 (Pagi)":
+    st.sidebar.info("💡 **BPJS Sesi 1**: Skrining saham momentum pagi hari (09:00 - 11:30 WIB) untuk scalping cepat dengan target profit 5-10%.")
+elif strategi == "🟡 BPJS Sesi 2 (Siang)":
+    st.sidebar.info("💡 **BPJS Sesi 2**: Skrining setelah istirahat siang (13:30 - 15:50 WIB) untuk scalping kelanjutan tren.")
+elif strategi == "🟣 BSJP (Beli Sore)":
     st.sidebar.info("💡 **BSJP**: Skrining sore hari menjelang tutup bursa untuk menangkap saham yang diakumulasi dan berpotensi naik besok pagi.")
+elif strategi == "🔥 ARA Hunter":
+    st.sidebar.info("💡 **ARA Hunter**: Skrining saham ber-volume masif yang sedang menuju/berpotensi mengunci kenaikan tertinggi (ARA).")
+elif strategi == "Swing & Scalping Klasik":
+    st.sidebar.info("💡 **Swing & Scalping Klasik**: Skrining dengan kombinasi indikator tren dan momentum seimbang, cocok untuk pemula dan swing trading jangka pendek.")
+elif strategi == "⚡ BPJS Agresif (Custom +2%)":
+    st.sidebar.info("💡 **BPJS Agresif**: Skrining saham momentum tinggi dengan minimal kenaikan hari ini +2% untuk trading kilat (scalping agresif).")
 
 # 🔍 Filter & Sortir
 st.sidebar.markdown("### 🔍 Filter & Sortir")
@@ -747,7 +792,7 @@ with st.sidebar.expander("⏱️ Pengaturan Lilin & Grafik (Lanjutan)", expanded
         [
             "⏱️ Harian - 1 Hari (Rekomendasi BSJP & ARA Hunter)",
             "⏱️ Menengah - 1 Jam (Rekomendasi Swing & Scalping Klasik)",
-            "⏱️ Scalping - 15 Menit (Rekomendasi BPJS Agresif)",
+            "⏱️ Scalping - 15 Menit (Rekomendasi Utama BPJS Sesi 1 & 2)",
             "⏱️ Scalping Cepat - 5 Menit (Scalping Sangat Agresif)"
         ],
         index=0
@@ -756,7 +801,7 @@ with st.sidebar.expander("⏱️ Pengaturan Lilin & Grafik (Lanjutan)", expanded
     tf_mapping = {
         "⏱️ Harian - 1 Hari (Rekomendasi BSJP & ARA Hunter)": "1d",
         "⏱️ Menengah - 1 Jam (Rekomendasi Swing & Scalping Klasik)": "1h",
-        "⏱️ Scalping - 15 Menit (Rekomendasi BPJS Agresif)": "15m",
+        "⏱️ Scalping - 15 Menit (Rekomendasi Utama BPJS Sesi 1 & 2)": "15m",
         "⏱️ Scalping Cepat - 5 Menit (Scalping Sangat Agresif)": "5m"
     }
     tf_option = tf_mapping[tf_display]
@@ -796,7 +841,7 @@ is_owner = (access_key == "rafifcuan")
 
 st.sidebar.markdown("""
 **📊 Sinyal:**
-🟢 **BELI** = Sinyal Masuk
+🟢 **BELI** = BPJS / Sinyal Masuk
 🟣 **BSJP** = Beli Sore Jual Pagi
 🔴 **JUAL** = Exit / Cut Loss
 ⏳ **TUNGGU** = Belum ada peluang
@@ -858,9 +903,9 @@ for i, sym in enumerate(symbols):
     chg   = (harga - prev) / prev * 100 if prev > 0 else 0
     sinyal, alasan, bsjp_metrics = tentukan_sinyal(
         ind, harga, prev, sesi_status,
-        taktik=taktik
+        strategi=strategi
     )
-    confidence, conf_label, conf_color = hitung_confidence(ind, harga, sinyal, bsjp_metrics, taktik)
+    confidence, conf_label, conf_color = hitung_confidence(ind, harga, sinyal, bsjp_metrics, strategi)
     lot = hitung_lot(modal_per_saham, harga)
     k   = kalkulator(harga, lot, target_pct, sl_pct)
     
@@ -950,7 +995,7 @@ st.markdown("---")
 # ─────────────────────────────────────────────────────────────────────────────
 # HELPER RENDER KARTU
 # ─────────────────────────────────────────────────────────────────────────────
-def render_kartu(r, taktik="🟣 BSJP (Beli Sore Jual Pagi)", is_owner=False):
+def render_kartu(r, strategi="🟣 BSJP (Beli Sore)", is_owner=False):
     sym    = r["symbol"]
     harga  = r["harga"]
     chg    = r["chg"]
@@ -988,7 +1033,7 @@ def render_kartu(r, taktik="🟣 BSJP (Beli Sore Jual Pagi)", is_owner=False):
             f'<span class="ind-pill">Tren: Teranalisis</span>'
         )
     
-    analisis = buat_analisis_singkat(ind, harga, sinyal, chg, r.get("bsjp_metrics"), taktik, is_owner)
+    analisis = buat_analisis_singkat(ind, harga, sinyal, chg, r.get("bsjp_metrics"), strategi, is_owner)
     confidence = r.get("confidence", 50)
     conf_label = r.get("conf_label", "Cukup")
     conf_color = r.get("conf_color", "#cbd5e1")
@@ -1072,7 +1117,7 @@ with tab1:
                         r['lot'] = hitung_lot(modal_per_saham, override_price)
                         r['k'] = kalkulator(override_price, r['lot'], target_pct, sl_pct)
                 
-                render_kartu(r, taktik, is_owner)
+                render_kartu(r, strategi, is_owner)
                 
                 # Interactive Price Override Input
                 st.number_input(
@@ -1102,7 +1147,7 @@ with tab1:
                         r['lot'] = hitung_lot(modal_per_saham, override_price)
                         r['k'] = kalkulator(override_price, r['lot'], target_pct, sl_pct)
                 
-                render_kartu(r, taktik, is_owner)
+                render_kartu(r, strategi, is_owner)
                 
                 st.number_input(
                     f"✏️ Sesuaikan Harga {r['symbol']}:",
@@ -1126,7 +1171,7 @@ with tab1:
                             r['lot'] = hitung_lot(modal_per_saham, override_price)
                             r['k'] = kalkulator(override_price, r['lot'], target_pct, sl_pct)
                     
-                    render_kartu(r, taktik, is_owner)
+                    render_kartu(r, strategi, is_owner)
                     
                     st.number_input(
                         f"✏️ Sesuaikan Harga {r['symbol']}:",
