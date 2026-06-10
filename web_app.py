@@ -916,7 +916,7 @@ filtered_results = []
 for r in results:
     if filter_sinyal and r["sinyal"] not in ("BELI", "BSJP"):
         continue
-    if r["confidence"] < min_confidence:
+    if r["sinyal"] in ("BELI", "BSJP") and r["confidence"] < min_confidence:
         continue
     filtered_results.append(r)
 
