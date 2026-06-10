@@ -1,246 +1,249 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import yfinance as yf
-import requests
 import pandas as pd
 import ta
 import json
 import os
 from datetime import datetime, timedelta
 import pytz
+import urllib.request
+import urllib.parse
 
 # ─────────────────────────────────────────────────────────────────────────────
-# KONFIGURASI HALAMAN
+# KONFIGURASI
 # ─────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Scalping IHSG — Trader Dashboard",
+    page_title="Scalping IHSG by Rafif",
     page_icon="🔥",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Constants & API Keys
-GOAPI_KEY     = "f6da6e9d-87b7-5276-00ca-39652df1"
-GOAPI_HEADERS = {"X-API-Key": GOAPI_KEY}
-BASE_URL      = "https://api.goapi.io"
-WIB           = pytz.timezone("Asia/Jakarta")
-FEE_BELI      = 0.0010
-FEE_JUAL      = 0.0020
-HISTORY_FILE  = os.path.join(os.path.dirname(__file__), "signal_history.json")
+WIB          = pytz.timezone("Asia/Jakarta")
+FEE_BELI     = 0.0010
+FEE_JUAL     = 0.0020
+HISTORY_FILE = os.path.join(os.path.dirname(__file__), "signal_history.json")
+ALERTS_FILE  = os.path.join(os.path.dirname(__file__), "telegram_alerts.json")
 
-LQ45_POPULER = [
-    # --- BLUE CHIPS & LARGE CAP ---
-    "BBCA", "BBRI", "BMRI", "BBNI", "TLKM", "ASII", "GOTO", "BREN", "AMMN", "ANTM",
-    "UNVR", "ICBP", "INDF", "KLBF", "SIDO", "ASRI", "BSDE", "CTRA", "PWON", "SMRA",
-    # --- BANKING & FINANCE (CONV & DIGITAL) ---
-    "BBTN", "BRIS", "BDMN", "ARTO", "BBYB", "BBHI", "MEGA", "CFIN", "ADMF", "PNBN",
-    # --- ENERGY, OIL, & GAS ---
-    "ADRO", "PTBA", "ITMG", "HRUM", "MEDC", "ELSA", "ENRG", "PGAS", "AKRA", "INDY",
-    "PGEO", "KEEN", "ADMR", "GEMS", "RAJA", "TOBA", "APEX",
-    # --- METALS, MINERALS, & MINING ---
-    "INCO", "TINS", "MDKA", "BRMS", "MBMA", "NCKL", "BUMI", "DEWA", "DOID", "KKGI",
-    # --- INFRASTRUCTURE & CONSTRUCTION ---
-    "JSMR", "ADHI", "PTPP", "WIKA", "WSKT", "SSIA", "META", "BALI", "TOWR", "TBIG",
-    # --- RETAIL, HEALTHCARE, & TOURISM ---
-    "ACES", "MAPI", "ERAA", "MAPA", "LPPF", "RALS", "MIKA", "HEAL", "SILO", "PANR",
-    # --- CONSUMER STAPLES & AGRICULTURE ---
-    "MYOR", "ROTI", "ULTJ", "CPIN", "JPFA", "AALI", "LSIP", "SSMS", "TAPG", "DSNG",
-    # --- BASIC MATERIALS & CHEMICALS ---
-    "SMGR", "INTP", "ESSA", "SRTG", "BRPT", "TPIA", "INKP", "TKIM", "UNTR", "GJTL",
-    "AUTO", "SMSM", "MASA", "IMAS", "WOOD",
-    # --- PROPERTIES & URBAN DEVELOPMENT ---
-    "KIJA", "DILD", "DMAS", "MTLA", "PPRO",
-    # --- TECHNOLOGY & DIGITAL MEDIA ---
-    "EMTK", "MNCN", "SCMA", "BUKA", "WIRG", "KIOS", "VKTR",
-    # --- LOGISTICS & SHIPPING ---
-    "ASSA", "SMDR", "BIRD", "BULL", "TMAS", "HAIS", "PSSI", "TPMA", "WINS",
-    # --- MOMENTUM & POPULAR MID-CAPS ---
-    "FILM", "DGNS", "MTDL", "BNBR", "LPKR", "MPPA", "MLPL"
+# Telegram Bot configuration (Hardcoded & Hidden from UI)
+TG_TOKEN     = "8989322838:AAHdCXYAM-jR3NYX2Y3kt5hmqpMm3UINBMo"
+TG_CHAT_ID   = "6905606117"
+ENABLE_TG    = True
+
+# ── ALL_SAHAM — Watchlist Gabungan Emiten IHSG (505 Saham) ────────────────────
+ALL_SAHAM = [
+    # === A - B ===
+    "AALI", "ABMM", "ACES", "ACST", "ADCP", "ADES", "ADHI", "ADMF", "ADMR", "ADRO",
+    "AGII", "AGRO", "AGRS", "AIMS", "AISA", "AKRA", "ALAS", "ALKA", "ALTO", "AMAR",
+    "AMMN", "AMRT", "ANDI", "ANTM", "APEX", "APIC", "APLI", "APLN", "ARCI", "ARKA",
+    "ARTO", "ASBI", "ASGR", "ASII", "ASJT", "ASMI", "ASPI", "ASRI", "ASSA", "ATIC",
+    "AUTO", "AVIA", "AWAN", "AXIO", "AYAM", "BABP", "BACA", "BAJA", "BALI", "BANK",
+    "BAPA", "BATA", "BAYU", "BBCA", "BBHI", "BBKP", "BBLD", "BBRI", "BBTN", "BBYB",
+    "BCAP", "BCIC", "BCIP", "BDMN", "BEBS", "BELI", "BESS", "BEST", "BFIN", "BGTG",
+    "BHIT", "BIKA", "BINA", "BIPI", "BIPP", "BIRD", "BISI", "BJBR", "BJTM", "BKDP",
+    "BKSL", "BMAS", "BMHS", "BMRI", "BMTR", "BNBR", "BNGA", "BNII", "BNLI", "BOLA",
+    "BOLT", "BPFI", "BPII", "BPTR", "BRAM", "BREN", "BRMS", "BRPT", "BSDE", "BSIM",
+    "BSML", "BTEK", "BTEL", "BTON", "BTPN", "BTPS", "BUDI", "BUKA", "BUKK", "BULL",
+    "BUMI", "BWPT", "BYAN",
+    # === C - F ===
+    "CAMP", "CARE", "CARS", "CASA", "CASS", "CEKA", "CENT", "CFIN", "CINT", "CITA",
+    "CLAY", "CLEO", "CMNP", "CNTX", "COAL", "COCO", "CPIN", "CPRO", "CSAP", "CSIS",
+    "CTBN", "CTRA", "CTTH", "CUAN", "DART", "DEFI", "DEWA", "DFAM", "DGIK", "DGNS",
+    "DILD", "DIVA", "DKFT", "DLTA", "DMAS", "DMMX", "DMND", "DNAR", "DNET", "DOID",
+    "DPNS", "DPUM", "DRMA", "DSFI", "DSNG", "DUTI", "DVLA", "DYAN", "EAST", "EDGE",
+    "EKAD", "ELSA", "ELTY", "EMTK", "ENRG", "ENVY", "ERAA", "ERTX", "ESIP", "ESSA",
+    "ESTI", "ETWA", "EXCL", "FAST", "FILM", "FMII", "FORZ", "FREN",
+    # === G - K ===
+    "GDST", "GDYR", "GEMA", "GEMS", "GGRM", "GIAA", "GJTL", "GLOB", "GMFI", "GMTD",
+    "GOLD", "GOOD", "GOTO", "GPRA", "GSMF", "GTBO", "GWSA", "HAIS", "HDFA", "HDIT",
+    "HEAL", "HELI", "HERO", "HEXA", "HITS", "HMSP", "HOKI", "HOMI", "HOPE", "HOTL",
+    "HRTA", "HRUM", "IATA", "IBST", "ICBP", "IKAN", "IKBI", "IMAS", "IMJS", "INAF",
+    "INCF", "INCI", "INCO", "INDF", "INDS", "INDX", "INDY", "INKP", "INPC", "INPS",
+    "INRU", "INTP", "IPCC", "IPCM", "IPOL", "IPTV", "IRRA", "ISAP", "ISAT", "ISSP",
+    "ITMA", "ITMG", "JAWA", "JECC", "JIHD", "JKON", "JPFA", "JRPT", "JSMR", "JSPT",
+    "JTPE", "KAEF", "KARW", "KAYU", "KBLI", "KBLM", "KBRI", "KDSI", "KEEN", "KEJU",
+    "KIAS", "KIJA", "KIOS", "KKGI", "KLBF", "KMTR", "KOBX", "KOIN", "KOTA", "KPIG",
+    "KRAH", "KRAS", "KREN",
+    # === L - R ===
+    "LINK", "LION", "LMAS", "LPCK", "LPKR", "LPLI", "LPPF", "LRNA", "LSIP", "LTLS",
+    "LUCK", "MAIN", "MAMI", "MAPA", "MAPB", "MAPI", "MARI", "MARK", "MASB", "MAYA",
+    "MBAP", "MBMA", "MBSS", "MCAS", "MCOR", "MDKA", "MDKI", "MDLN", "MEDC", "MEGA",
+    "MERK", "META", "MFIN", "MFMI", "MGRO", "MIDI", "MIKA", "MITI", "MKPI", "MNCN",
+    "MPPA", "MSIN", "MSKY", "MTDL", "MTFN", "MTLA", "MTPS", "MTSM", "MYOR", "MYRX",
+    "MYTX", "NASA", "NELI", "NFCX", "NICL", "NIKL", "NIPS", "NISP", "NOBU", "NRCA",
+    "NZIA", "OASA", "OKAS", "OMED", "OMRE", "PADI", "PALM", "PANI", "PANR", "PANS",
+    "PBID", "PCAR", "PDES", "PEGE", "PEHA", "PGAS", "PGEO", "PGLI", "PICO", "PJAA",
+    "PLIN", "PMMP", "PNBN", "PNBS", "PNIN", "PNLF", "PNSE", "POLA", "POLI", "PORT",
+    "POWR", "PPRE", "PPRO", "PRAS", "PRDA", "PSAB", "PSDN", "PSSI", "PTBA", "PTDU",
+    "PTIS", "PTPP", "PTRO", "PTSN", "PTSP", "PUDP", "PWON", "PYFA", "PZZA", "RALS",
+    "RAMA", "RANC", "RATU", "RBMS", "RDTX", "RELI", "RICY", "RIGS", "RISE", "RMKE",
+    "RODA", "ROTI", "RUIS",
+    # === S - Z ===
+    "SAFE", "SAME", "SAMF", "SCCO", "SCMA", "SCPI", "SDMU", "SDPC", "SDRA", "SGER",
+    "SGRO", "SHID", "SHIP", "SIDO", "SILO", "SIMP", "SIPD", "SKYB", "SLIS", "SMBR",
+    "SMCB", "SMDM", "SMDR", "SMGR", "SMKL", "SMMT", "SMRA", "SMSM", "SOCI", "SOHO",
+    "SONA", "SPTO", "SRAJ", "SRIL", "SRTG", "SSIA", "SSMS", "SSTM", "SULI", "SUPR",
+    "TALF", "TAPG", "TAXI", "TBIG", "TBLA", "TBMS", "TCPI", "TEBE", "TELE", "TFAS",
+    "TFCO", "TGRA", "TIFA", "TINS", "TIRT", "TKIM", "TLKM", "TMAS", "TMPO", "TOBA",
+    "TOTL", "TOWR", "TPIA", "TPMA", "TRIL", "TRIM", "TRIN", "TRIS", "TRJA", "TRST",
+    "TRUK", "TSPC", "TURI", "UCID", "ULTJ", "UNIC", "UNSP", "UNTR", "UNVR", "URBN",
+    "VALE", "VICO", "VRNA", "WAHA", "WEGE", "WEHA", "WICO", "WIFI", "WIIM", "WIKA",
+    "WINS", "WIPO", "WOMF", "WOOD", "WOWS", "WSBP", "WSKT", "WTON", "YPAS", "YULE",
+    "ZBRA"
 ]
+# Hapus duplikat, jaga urutan
+_seen = set()
+ALL_SAHAM = [x for x in ALL_SAHAM if not (x in _seen or _seen.add(x))]
 
 # ─────────────────────────────────────────────────────────────────────────────
-# PREMIUM & MODERN CSS SYSTEM (Sleek Dark Slate & Emerald Theme)
+# CSS
 # ─────────────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
-/* Reset base typography */
-html, body, [class*="css"] {
-    font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
-    color: #f1f5f9;
-}
-
-/* Glassmorphic Main Header Banner */
 .main-header {
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 16px;
-    padding: 24px 32px;
-    margin-bottom: 20px;
-    text-align: center;
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+    background: linear-gradient(135deg, #0a0a1a 0%, #1a1040 50%, #0d1b2a 100%);
+    border: 1px solid rgba(139,92,246,0.3);
+    border-radius: 20px; padding: 30px 40px; margin-bottom: 0px;
+    text-align: center; box-shadow: 0 8px 40px rgba(139,92,246,0.15);
 }
 .main-header h1 {
-    font-size: 2.2rem;
-    font-weight: 800;
-    margin: 0;
-    background: linear-gradient(90deg, #10b981 0%, #3b82f6 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: #fff; font-size: 2.4rem; font-weight: 900; margin: 0;
+    background: linear-gradient(90deg, #a78bfa, #60a5fa, #34d399);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
 }
-.main-header p {
-    color: #94a3b8;
-    font-size: 0.95rem;
-    margin: 6px 0 0 0;
-}
+.main-header p { color: #94a3b8; font-size: 0.9rem; margin: 8px 0 0 0; }
 
-/* Bursa Status Badges */
-.pasar-buka {
-    background: rgba(16, 185, 129, 0.1);
-    border: 1px solid rgba(16, 185, 129, 0.2);
-    border-radius: 10px;
-    padding: 10px 16px;
-    color: #34d399;
-    font-weight: 600;
-    font-size: 0.88rem;
-    margin-bottom: 20px;
-    text-align: center;
-}
-.pasar-tutup {
-    background: rgba(100, 116, 139, 0.1);
-    border: 1px solid rgba(100, 116, 139, 0.2);
-    border-radius: 10px;
-    padding: 10px 16px;
-    color: #94a3b8;
-    font-weight: 600;
-    font-size: 0.88rem;
-    margin-bottom: 20px;
-    text-align: center;
-}
-.pasar-preopen {
-    background: rgba(59, 130, 246, 0.1);
-    border: 1px solid rgba(59, 130, 246, 0.2);
-    border-radius: 10px;
-    padding: 10px 16px;
-    color: #60a5fa;
-    font-weight: 600;
-    font-size: 0.88rem;
-    margin-bottom: 20px;
-    text-align: center;
-}
+.pasar-buka    { background: linear-gradient(90deg,#064e3b,#065f46); border-left: 4px solid #10b981; border-radius: 10px; padding: 12px 20px; color: #d1fae5; font-weight: 700; margin: 12px 0; }
+.pasar-tutup   { background: linear-gradient(90deg,#18181b,#27272a); border-left: 4px solid #52525b; border-radius: 10px; padding: 12px 20px; color: #a1a1aa; font-weight: 700; margin: 12px 0; }
+.pasar-preopen { background: linear-gradient(90deg,#1e3a5f,#1e40af); border-left: 4px solid #60a5fa; border-radius: 10px; padding: 12px 20px; color: #bfdbfe; font-weight: 700; margin: 12px 0; }
 
-/* Glow Card Layouts */
-.card-beli {
-    background: #1e293b;
-    border: 2px solid #10b981;
-    border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 16px;
-    box-shadow: 0 0 15px rgba(16, 185, 129, 0.15);
-}
-.card-bsjp {
-    background: #1e293b;
-    border: 2px solid #a855f7;
-    border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 16px;
-    box-shadow: 0 0 15px rgba(168, 85, 247, 0.15);
-}
-.card-jual {
-    background: #1e293b;
-    border: 1px solid #ef4444;
-    border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 16px;
-}
-.card-tunggu {
-    background: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 16px;
-}
+.card-beli   { background: linear-gradient(135deg,#052e16 0%,#14532d 100%); border: 2px solid #22c55e; border-radius: 18px; padding: 20px; margin-bottom: 6px; }
+.card-jual   { background: linear-gradient(135deg,#450a0a 0%,#7f1d1d 100%); border: 2px solid #ef4444; border-radius: 18px; padding: 20px; margin-bottom: 6px; }
+.card-tunggu { background: linear-gradient(135deg,#111827 0%,#1f2937 100%); border: 1.5px solid #374151; border-radius: 18px; padding: 20px; margin-bottom: 6px; }
+.card-bsjp   { background: linear-gradient(135deg,#1e1b4b 0%,#312e81 100%); border: 2px solid #818cf8; border-radius: 18px; padding: 20px; margin-bottom: 6px; }
 
-/* Card Typography & Elements */
-.card-sym {
-    font-size: 1.4rem;
-    font-weight: 800;
-    color: #ffffff;
-}
-.card-price {
-    font-size: 2.1rem;
-    font-weight: 800;
-    color: #ffffff;
-    margin: 4px 0;
-}
-.tag-green {
-    background: #10b981;
-    color: #0f172a;
-    border-radius: 6px;
-    padding: 3px 10px;
-    font-size: 0.75rem;
-    font-weight: 700;
-}
-.tag-red {
-    background: #ef4444;
-    color: #ffffff;
-    border-radius: 6px;
-    padding: 3px 10px;
-    font-size: 0.75rem;
-    font-weight: 700;
-}
-.tag-gray {
-    background: #334155;
-    color: #cbd5e1;
-    border-radius: 6px;
-    padding: 3px 10px;
-    font-size: 0.75rem;
-    font-weight: 600;
-}
-.tag-purple {
-    background: #a855f7;
-    color: #ffffff;
-    border-radius: 6px;
-    padding: 3px 10px;
-    font-size: 0.75rem;
-    font-weight: 700;
-}
+.card-sym   { font-size: 1.3rem; font-weight: 900; color: #fff; }
+.card-price { font-size: 2rem; font-weight: 900; color: #fff; margin: 4px 0 2px 0; }
 
-/* Clean Indicator Badges (Pills) */
+.tag-green  { background: linear-gradient(90deg,#16a34a,#15803d); color:#fff; border-radius:8px; padding:4px 12px; font-size:0.75rem; font-weight:800; letter-spacing:0.5px; }
+.tag-red    { background: linear-gradient(90deg,#dc2626,#b91c1c); color:#fff; border-radius:8px; padding:4px 12px; font-size:0.75rem; font-weight:800; }
+.tag-gray   { background: linear-gradient(90deg,#374151,#4b5563); color:#e5e7eb; border-radius:8px; padding:4px 12px; font-size:0.75rem; font-weight:700; }
+.tag-purple { background: linear-gradient(90deg,#6d28d9,#7c3aed); color:#fff; border-radius:8px; padding:4px 12px; font-size:0.75rem; font-weight:800; }
+
 .ind-pill {
-    display: inline-block;
-    border-radius: 20px;
-    padding: 4px 10px;
-    font-size: 0.75rem;
-    margin: 3px 3px 3px 0;
-    background: rgba(255, 255, 255, 0.05);
-    color: #cbd5e1;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    display:inline-block; border-radius:20px; padding:3px 11px;
+    font-size:0.76rem; margin: 3px 3px 3px 0;
+    background:rgba(255,255,255,0.07); color:#cbd5e1;
 }
-
-/* Embedded Calculator Style inside Cards */
-.card-kalkulator {
-    background: rgba(15, 23, 42, 0.5);
-    border-radius: 10px;
-    padding: 12px 14px;
-    margin-top: 14px;
-    font-size: 0.8rem;
-    color: #94a3b8;
-    line-height: 1.6;
+.kalkulator {
+    background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px; padding: 14px 16px; margin-top: 12px;
+    font-size: 0.84rem; color: #e2e8f0; line-height: 1.8;
 }
-
+.kalkulator b { color: #fff; }
 .section-header {
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: #ffffff;
-    margin: 18px 0 10px 0;
+    font-size: 1.2rem; font-weight: 800; color: #fff;
+    margin: 20px 0 12px 0; padding-left: 4px;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# UTILITY FUNCTIONS
+# TRADINGVIEW WIDGET BUILDERS
+# ─────────────────────────────────────────────────────────────────────────────
+def tv_ticker_tape(symbols_list):
+    syms_js = ",\n".join([
+        f'{{"proName":"IDX:{s}","title":"{s}"}}'
+        for s in symbols_list
+    ])
+    return f"""
+    <div class="tradingview-widget-container">
+      <div class="tradingview-widget-container__widget"></div>
+      <script type="text/javascript"
+        src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+      {{
+        "symbols": [
+          {{"proName": "FOREXCOM:SPXUSD", "title": "S&P 500"}},
+          {{"proName": "IDX:COMPOSITE", "title": "IHSG"}},
+          {syms_js}
+        ],
+        "showSymbolLogo": true,
+        "isTransparent": false,
+        "displayMode": "adaptive",
+        "colorTheme": "dark",
+        "locale": "id"
+      }}
+      </script>
+    </div>
+    """
+
+def tv_technical_analysis(symbol, interval="1D", height=380):
+    mapping = {
+        "1": "1m",
+        "5": "5m",
+        "15": "15m",
+        "30": "30m",
+        "60": "1h",
+        "1D": "1D",
+        "1W": "1W"
+    }
+    tv_int = mapping.get(interval, "1D")
+    
+    return f"""
+    <div class="tradingview-widget-container">
+      <div class="tradingview-widget-container__widget"></div>
+      <script type="text/javascript"
+        src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
+      {{
+        "interval": "{tv_int}",
+        "width": "100%",
+        "isTransparent": true,
+        "height": {height},
+        "symbol": "IDX:{symbol}",
+        "showIntervalTabs": true,
+        "displayMode": "multiple",
+        "locale": "id",
+        "colorTheme": "dark"
+      }}
+      </script>
+    </div>
+    """
+
+def tv_advanced_chart(symbol, interval="1D", height=400):
+    tv_int = interval
+    if interval == "1D": tv_int = "D"
+    elif interval == "1W": tv_int = "W"
+    
+    return f"""
+    <div class="tradingview-widget-container" style="height:{height}px;">
+      <div id="tv_chart_{symbol}" style="height:{height}px;"></div>
+      <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+      <script type="text/javascript">
+      new TradingView.widget({{
+        "width": "100%",
+        "height": {height},
+        "symbol": "IDX:{symbol}",
+        "interval": "{tv_int}",
+        "timezone": "Asia/Jakarta",
+        "theme": "dark",
+        "style": "1",
+        "locale": "id",
+        "toolbar_bg": "#f1f3f6",
+        "enable_publishing": false,
+        "hide_side_toolbar": false,
+        "allow_symbol_change": true,
+        "container_id": "tv_chart_{symbol}"
+      }});
+      </script>
+    </div>
+    """
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FUNGSI UTILITAS
 # ─────────────────────────────────────────────────────────────────────────────
 def get_status_pasar():
     now = datetime.now(WIB)
@@ -248,18 +251,12 @@ def get_status_pasar():
         return "tutup", "🔴 Bursa Tutup — Weekend (Senin buka 09:00 WIB)"
     h, m = now.hour, now.minute
     t = (h, m)
-    if t < (8, 55):
-        return "tutup", "🔴 Bursa Belum Buka — Sesi 1 mulai 09:00 WIB"
-    elif t < (9, 0):
-        return "preopen", "🔵 Sesi Pre-Opening — Pembukaan segera dimulai! ⚡"
-    elif (9, 0) <= t < (11, 30):
-        return "buka", "🟢 Sesi 1 Berjalan (09:00 – 11:30 WIB)"
-    elif (11, 30) <= t < (13, 30):
-        return "tutup", "🟡 Istirahat Sesi Siang (11:30 – 13:30 WIB)"
-    elif (13, 30) <= t < (15, 50):
-        return "buka", "🟢 Sesi 2 Berjalan (13:30 – 15:50 WIB)"
-    else:
-        return "tutup", "🔴 Bursa Sudah Tutup — Buka besok pagi 09:00 WIB"
+    if   t < (8, 55):              return "tutup",   "🔴 Bursa Belum Buka — Sesi 1 mulai 09:00 WIB"
+    elif t < (9,  0):              return "preopen", "🔵 Pre-Opening — Bursa buka dalam hitungan menit! ⚡"
+    elif (9,0)  <= t < (11,30):   return "buka",    "🟢 SESI 1 BUKA (09:00 – 11:30 WIB)"
+    elif (11,30)<= t < (13,30):   return "tutup",   "🟡 Istirahat Siang (11:30 – 13:30 WIB)"
+    elif (13,30)<= t < (15,50):   return "buka",    "🟢 SESI 2 BUKA (13:30 – 15:50 WIB)"
+    else:                          return "tutup",   "🔴 Bursa Sudah Tutup — Buka besok 09:00 WIB"
 
 def snap_fraksi(h):
     if h < 200:    return round(h)
@@ -268,6 +265,19 @@ def snap_fraksi(h):
     elif h < 5000: return round(h/25)*25
     else:          return round(h/50)*50
 
+def get_ara_limit(price):
+    if price < 50:
+        return 10.0  # Papan Akselerasi / FCA
+    elif price <= 200:
+        return 35.0
+    elif price <= 5000:
+        return 25.0
+    else:
+        return 20.0
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SIGNAL HISTORY — Simpan, Load, Evaluasi
+# ─────────────────────────────────────────────────────────────────────────────
 def load_history():
     if not os.path.exists(HISTORY_FILE):
         return []
@@ -285,27 +295,11 @@ def save_history(history):
     except:
         return False
 
-def send_telegram_alert(message):
-    token = "8520698282:AAF40Cj54M8xX4sPkILJKT-VTBQ43aJ6VdU"
-    chat_id = "6905606117"
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": message,
-        "parse_mode": "Markdown"
-    }
-    try:
-        response = requests.post(url, json=payload, timeout=10)
-        return response.status_code == 200
-    except:
-        return False
-
 def record_signals(results, modal_per_saham, target_pct, sl_pct):
     history   = load_history()
     now       = datetime.now(WIB)
     scan_time = now.strftime("%Y-%m-%d %H:%M")
     scan_date = now.strftime("%Y-%m-%d")
-
     existing_keys = {(e["scan_date"], e["symbol"]) for e in history}
     new_count = 0
     for r in results:
@@ -335,42 +329,11 @@ def record_signals(results, modal_per_saham, target_pct, sl_pct):
             "harga_close":    None,
             "return_pct":     None,
             "outcome":        None,
-            "est_profit_rp":  None
+            "est_profit_rp":  None,
         }
         history.append(entry)
         existing_keys.add(key)
         new_count += 1
-
-        # Kirim Alert Telegram jika kekuatan sinyal >= 60% (Noise Filtering)
-        if r.get("confidence", 0) >= 60:
-            try:
-                target_tp = snap_fraksi(k["ht"]) if k else 0
-                sl_val = snap_fraksi(k["hsl"]) if k else 0
-                modal_val = round(k["modal"]) if k else 0
-                taktik_val = taktik_trading if 'taktik_trading' in globals() else "Scalping"
-                
-                import urllib.parse
-                taktik_encoded = urllib.parse.quote(taktik_val)
-                emoji = "🟢" if r["sinyal"] == "BELI" else "🟣" if r["sinyal"] == "BSJP" else "🔴"
-                web_link = f"https://indo-scalping.streamlit.app/?saham={r['symbol']}&taktik={taktik_encoded}"
-                
-                msg = (
-                    f"🚨 *{emoji} SINYAL TRADING BARU TERDETEKSI!* *{r['symbol']}*\n\n"
-                    f"• *Aset/Kode:* {r['symbol']}\n"
-                    f"• *Taktik:* {taktik_val}\n"
-                    f"• *Sinyal:* {r['sinyal']}\n"
-                    f"• *Harga Masuk:* Rp {r['harga']:,.0f}\n"
-                    f"• *Kekuatan Sinyal:* {r['confidence']}% ({r['conf_label']})\n"
-                    f"• *Target TP:* Rp {target_tp:,.0f} (+{target_pct}%)\n"
-                    f"• *Batas SL:* Rp {sl_val:,.0f} (-{sl_pct}%)\n"
-                    f"• *Rekomendasi:* Beli {r['lot']} lot (Modal: Rp {modal_val:,.0f})\n\n"
-                    f"🔍 [Buka Web App & Analisa Detail]({web_link})\n\n"
-                    f"_Waktu Scan: {scan_time} WIB_"
-                )
-                send_telegram_alert(msg)
-            except:
-                pass
-
     save_history(history)
     return new_count
 
@@ -378,16 +341,15 @@ def evaluate_history():
     history = load_history()
     changed = 0
     today   = datetime.now(WIB).strftime("%Y-%m-%d")
-
     for entry in history:
         if entry.get("outcome") is not None:
             continue
         if entry["scan_date"] == today:
             continue
-
         sym = entry["symbol"]
         try:
-            df = yf.download(f"{sym}.JK", period="5d", interval="1d", auto_adjust=True, progress=False)
+            df = yf.download(f"{sym}.JK", period="5d", interval="1d",
+                             auto_adjust=True, progress=False)
             if df.empty:
                 continue
             df.index = pd.to_datetime(df.index)
@@ -395,482 +357,145 @@ def evaluate_history():
             after    = df[df.index.normalize() > scan_dt]
             if after.empty:
                 continue
-
             close_price = float(after["Close"].iloc[0])
             h_signal    = entry["harga_signal"]
             ret         = (close_price - h_signal) / h_signal * 100
-
             entry["harga_close"] = round(close_price, 0)
             entry["return_pct"]  = round(ret, 2)
-
             if entry["sinyal"] in ("BELI", "BSJP"):
-                if ret >= entry["target_pct"]:
-                    outcome = "HIT_TARGET ✅"
-                elif ret <= -entry["sl_pct"]:
-                    outcome = "HIT_SL ❌"
-                elif ret > 0:
-                    outcome = "PROFIT 🟡"
+                if r := entry["return_pct"]:
+                    if r >= entry["target_pct"]:
+                        outcome = "HIT_TARGET ✅"
+                    elif r <= -entry["sl_pct"]:
+                        outcome = "HIT_SL ❌"
+                    elif r > 0:
+                        outcome = "PROFIT 🟡"
+                    else:
+                        outcome = "LOSS 🔴"
                 else:
-                    outcome = "LOSS 🔴"
+                    continue
             else:
                 outcome = "TURUN ✅" if ret < 0 else "NAIK ❌"
-
             entry["outcome"]       = outcome
             entry["est_profit_rp"] = round(ret / 100 * entry["modal"]) if entry["modal"] else None
             changed += 1
         except:
             continue
-
     if changed:
         save_history(history)
     return history, changed
 
 # ─────────────────────────────────────────────────────────────────────────────
-# CORE CALCULATIONS & INDICATORS
+# TELEGRAM BOT LOGIC
 # ─────────────────────────────────────────────────────────────────────────────
-def hitung_indikator(df):
+def load_sent_alerts():
+    if not os.path.exists(ALERTS_FILE):
+        return {}
     try:
-        df = df.copy()
-        c = df["close"]
-        
-        # Fillna for indicators to avoid NaN values (e.g. for new IPO stocks)
-        df["RSI"]       = ta.momentum.rsi(c, window=14).fillna(50)
-        df["EMA9"]      = ta.trend.ema_indicator(c, window=9).fillna(c)
-        df["EMA21"]     = ta.trend.ema_indicator(c, window=21).fillna(c)
-        df["EMA50"]     = ta.trend.ema_indicator(c, window=50).fillna(c)
-        macd_obj        = ta.trend.MACD(c)
-        df["MACD"]      = macd_obj.macd().fillna(0)
-        df["MACD_hist"] = macd_obj.macd_diff().fillna(0)
-        df["vol_ma20"]  = df["volume"].rolling(20).mean().fillna(df["volume"])
-        
-        # Tambahan untuk Taktik BPJS & ARA Hunter
-        df["MA5"]       = c.rolling(5).mean().fillna(c)
-        df["MA50"]      = c.rolling(50).mean().fillna(c)
-        
-        res = df.iloc[-1].to_dict()
-        if len(df) >= 3:
-            res["prev_close"]   = float(df["close"].iloc[-2])
-            res["prev_volume"]  = float(df["volume"].iloc[-2])
-            p_close             = float(df["close"].iloc[-2])
-            pp_close            = float(df["close"].iloc[-3])
-            res["chg_kemarin"]  = (p_close - pp_close) / pp_close * 100 if pp_close > 0 else 0.0
-        elif len(df) == 2:
-            res["prev_close"]   = float(df["close"].iloc[-2])
-            res["prev_volume"]  = float(df["volume"].iloc[-2])
-            res["chg_kemarin"]  = 0.0
-        else:
-            res["prev_close"]   = float(df["close"].iloc[-1])
-            res["prev_volume"]  = float(df["volume"].iloc[-1])
-            res["chg_kemarin"]  = 0.0
-            
-        res["open_today"]  = float(df["open"].iloc[-1])
-        res["value_today"] = float(df["volume"].iloc[-1]) * float(df["close"].iloc[-1])
-        
-        return res
+        with open(ALERTS_FILE, "r") as f:
+            return json.load(f)
     except:
-        return None
+        return {}
+
+def save_sent_alerts(alerts):
+    try:
+        with open(ALERTS_FILE, "w") as f:
+            json.dump(alerts, f)
+    except:
+        pass
+
+def send_telegram_alert(token, chat_id, r, tf, target_pct, sl_pct):
+    sym = r["symbol"]
+    sinyal = r["sinyal"]
+    harga = r["harga"]
+    lot = r["lot"]
+    k = r["k"]
+    confidence = r["confidence"]
+    conf_label = r["conf_label"]
+    
+    sig_emoji = "🟢" if sinyal == "BELI" else "🟣"
+    sig_name = "BELI (BPJS)" if sinyal == "BELI" else ("BELI SORE (BSJP V1)" if r.get("bsjp_metrics") else "BELI SORE (BSJP)")
+    
+    target_price = snap_fraksi(k["ht"]) if k else harga
+    sl_price = snap_fraksi(k["hsl"]) if k else harga
+    modal = k["modal"] if k else 0
+    profit = k["profit"] if k else 0
+    rugi = k["rugi"] if k else 0
+    
+    msg = (
+        f"<b>{sig_emoji} SIGNAL ALERT: {sym}</b>\n"
+        f"───────────────────\n"
+        f"🎯 <b>Sinyal:</b> {sig_name}\n"
+        f"⏱️ <b>Timeframe:</b> {tf}\n"
+        f"💵 <b>Harga Masuk:</b> Rp {harga:,.0f}\n"
+        f"💼 <b>Rekomendasi Lot:</b> {lot} lot\n"
+        f"💰 <b>Estimasi Modal:</b> Rp {modal:,.0f}\n"
+        f"📊 <b>Confidence:</b> {confidence}% ({conf_label})\n\n"
+        f"🎯 <b>Target Jual:</b> Rp {target_price:,.0f} (+{target_pct:.1f}%)\n"
+        f"🛑 <b>Stop Loss:</b> Rp {sl_price:,.0f} (-{sl_pct:.1f}%)\n"
+        f"✅ <b>Est. Profit:</b> Rp {profit:+,.0f}\n"
+        f"❌ <b>Est. Rugi:</b> Rp {rugi:+,.0f}\n"
+        f"───────────────────\n"
+        f"<i>Jam Scan: {datetime.now(WIB).strftime('%d/%m/%Y %H:%M:%S')} WIB</i>"
+    )
+    
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    data = urllib.parse.urlencode({"chat_id": chat_id, "text": msg, "parse_mode": "HTML"}).encode("utf-8")
+    try:
+        req = urllib.request.Request(url, data=data)
+        with urllib.request.urlopen(req, timeout=5) as response:
+            return True
+    except Exception as e:
+        return False
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TRADING TACTICS SIGNALS & CONFIDENCES
+# FUNGSI ANALISIS & SINYAL
 # ─────────────────────────────────────────────────────────────────────────────
-def tentukan_sinyal_classic(ind, harga, sesi_status):
-    if ind is None:
-        return "TUNGGU", ["Data kurang"]
-    rsi    = ind.get("RSI", 50)
-    ema9   = ind.get("EMA9", harga)
-    ema21  = ind.get("EMA21", harga)
-    mh     = ind.get("MACD_hist", 0)
-    vol    = ind.get("volume", 0)
-    volma  = ind.get("vol_ma20", vol or 1)
-    bull   = ema9 > ema21
-    diatas = harga > ema21
-    vspike = vol >= volma * 1.15 if volma > 0 else False
-    
-    alasan = []; bs = 0; js = 0
-    if rsi < 50:   bs+=1; alasan.append(f"RSI {rsi:.0f} ✅")
-    if bull:       bs+=1; alasan.append("EMA9>21 ✅")
-    if mh > 0:     bs+=1; alasan.append("MACD+ ✅")
-    if vspike:     bs+=1; alasan.append("Vol Spike ✅")
-    if diatas:     bs+=1; alasan.append("Di atas EMA21 ✅")
-    if rsi > 72:   js+=2; alasan.append(f"RSI {rsi:.0f} ⚠️")
-    if not bull:   js+=1; alasan.append("EMA9<21 ⚠️")
-    if mh < 0:     js+=1; alasan.append("MACD- ⚠️")
-    if not diatas: js+=1; alasan.append("Di bawah EMA21 ⚠️")
-    
-    now = datetime.now(WIB)
-    h2, m2 = now.hour, now.minute
-    bsjp_ok = (14,30)<=(h2,m2)<=(15,50) and sesi_status=="buka" and bs>=4 and rsi<58 and mh>0
-    
-    if js >= 3:    return "JUAL",   alasan
-    if bsjp_ok:    return "BSJP",   alasan
-    if bs >= 3:    return "BELI",   alasan
-    return "TUNGGU", alasan
-
-def tentukan_sinyal_bpjs_agresif(ind, harga, min_chg, min_val_miliar):
-    if ind is None:
-        return "TUNGGU", ["Data kurang"], 0
-    
-    prev_close  = ind.get("prev_close", harga)
-    open_today  = ind.get("open_today", harga)
-    prev_volume = ind.get("prev_volume", 0)
-    vol_today   = ind.get("volume", 0)
-    ma5         = ind.get("MA5", harga)
-    value_today = ind.get("value_today", 0)
-    
-    chg_prev   = ((harga - prev_close) / prev_close * 100) if prev_close > 0 else 0
-    cond_chg   = chg_prev >= min_chg
-    cond_ma5   = harga >= ma5
-    cond_green = harga >= open_today
-    cond_vol   = vol_today >= 0.2 * prev_volume if prev_volume > 0 else False
-    cond_val   = value_today >= min_val_miliar * 1_000_000_000
-    
-    alasan = []
-    bs = 0
-    
-    if cond_chg:
-        bs += 1
-        alasan.append(f"Naik ≥{min_chg}% ({chg_prev:+.1f}%) ✅")
-    else:
-        alasan.append(f"Naik <{min_chg}% ({chg_prev:+.1f}%) ⚠️")
-        
-    if cond_ma5:
-        bs += 1
-        alasan.append("Di atas MA5 ✅")
-    else:
-        alasan.append("Di bawah MA5 ⚠️")
-        
-    if cond_green:
-        bs += 1
-        alasan.append("Candle Hijau ✅")
-    else:
-        alasan.append("Candle Merah ⚠️")
-        
-    if cond_vol:
-        bs += 1
-        pct_prev = (vol_today / prev_volume * 100) if prev_volume > 0 else 0
-        alasan.append(f"Vol Pagi Cukup ({pct_prev:.0f}%) ✅")
-    else:
-        alasan.append("Vol Pagi Kurang ⚠️")
-        
-    if cond_val:
-        bs += 1
-        alasan.append(f"Value >{min_val_miliar}M (Rp {value_today/1e9:.1f}B) ✅")
-    else:
-        alasan.append(f"Value <{min_val_miliar}M (Rp {value_today/1e9:.1f}B) ⚠️")
-        
-    if bs == 5:
-        return "BELI", alasan, bs
-    return "TUNGGU", alasan, bs
-
-def tentukan_sinyal_ara_hunter(ind, harga, min_chg_prev, min_val_miliar):
-    """
-    Taktik ARA Hunter:
-    1. Previous Volume > 2 * Volume MA20 (Akumulasi volume kemarin)
-    2. Smart Money Accumulation (Vol spike hari ini didukung momentum positif)
-    3. Return harga kemarin > min_chg_prev % (Default: +3.0%)
-    4. High Price Hari Ini > Price MA 5 (Sedang Breakout)
-    5. Low Price Hari Ini > 0.95 * Price MA 50 (Tren besar sehat, memantul dari support)
-    """
-    if ind is None:
-        return "TUNGGU", ["Data kurang"], 0
-        
-    prev_close  = ind.get("prev_close", harga)
-    prev_volume = ind.get("prev_volume", 0)
-    vol_today   = ind.get("volume", 0)
-    vol_ma20    = ind.get("vol_ma20", 1)
-    ma5         = ind.get("MA5", harga)
-    ma50        = ind.get("MA50", harga)
-    value_today = ind.get("value_today", 0)
-    
-    # Estimasi high/low hari ini (menggunakan close jika yfinance delay)
-    high_today = ind.get("high", harga)
-    low_today  = ind.get("low", harga)
-    
-    chg_prev = ind.get("chg_kemarin", 0.0)
-    
-    cond_vol_kemarin = prev_volume > 1.8 * vol_ma20 if vol_ma20 > 0 else False
-    cond_smart_money = vol_today >= 0.15 * prev_volume if prev_volume > 0 else False
-    cond_chg_prev    = chg_prev >= min_chg_prev
-    cond_breakout    = high_today >= ma5
-    cond_support     = low_today >= 0.95 * ma50
-    cond_val         = value_today >= min_val_miliar * 1_000_000_000
-    
-    alasan = []
-    bs = 0
-    
-    if cond_vol_kemarin:
-        bs += 1
-        alasan.append("Vol Kemarin Besar (Akumulasi) ✅")
-    else:
-        alasan.append("Vol Kemarin Biasa ⚠️")
-        
-    if cond_smart_money:
-        bs += 1
-        alasan.append("Smart Money Masuk ✅")
-    else:
-        alasan.append("Smart Money Pasif ⚠️")
-        
-    if cond_chg_prev:
-        bs += 1
-        alasan.append(f"Ret Kemarin Bullish ({chg_prev:+.1f}%) ✅")
-    else:
-        alasan.append(f"Ret Kemarin Lemah ({chg_prev:+.1f}%) ⚠️")
-        
-    if cond_breakout:
-        bs += 1
-        alasan.append("Breakout MA5 ✅")
-    else:
-        alasan.append("Gagal Breakout ⚠️")
-        
-    if cond_support:
-        bs += 1
-        alasan.append("Di atas Support MA50 ✅")
-    else:
-        alasan.append("Di bawah Support ⚠️")
-        
-    if cond_val:
-        bs += 1
-    
-    # Dianggap sinyal BELI ARA jika minimal 4 dari 5 kriteria utama terpenuhi
-    if bs >= 4 and cond_val:
-        return "BELI", alasan, bs
-    return "TUNGGU", alasan, bs
-
-def tentukan_sinyal_bsjp(ind, harga, max_rsi, min_val_miliar):
-    if ind is None:
-        return "TUNGGU", ["Data kurang"], 0
-    
-    rsi    = ind.get("RSI", 50)
-    ema9   = ind.get("EMA9", harga)
-    ema21  = ind.get("EMA21", harga)
-    mh     = ind.get("MACD_hist", 0)
-    vol    = ind.get("volume", 0)
-    volma  = ind.get("vol_ma20", vol or 1)
-    value_today = ind.get("value_today", 0)
-    
-    bull   = ema9 > ema21
-    diatas = harga > ema21
-    vspike = vol >= volma * 1.10 if volma > 0 else False
-    cond_val = value_today >= min_val_miliar * 1_000_000_000
-    
-    alasan = []
-    bs = 0
-    
-    if bull:
-        bs += 1
-        alasan.append("EMA9 > EMA21 (Uptrend) ✅")
-    else:
-        alasan.append("EMA9 <= EMA21 (Downtrend) ⚠️")
-        
-    if mh > 0:
-        bs += 1
-        alasan.append("MACD Histogram Positif ✅")
-    else:
-        alasan.append("MACD Histogram Negatif ⚠️")
-        
-    if rsi < max_rsi:
-        bs += 1
-        alasan.append(f"RSI Aman ({rsi:.0f} < {max_rsi}) ✅")
-    else:
-        alasan.append(f"RSI Tinggi ({rsi:.0f} >= {max_rsi}) ⚠️")
-        
-    if vspike:
-        bs += 1
-        alasan.append("Volume Meningkat ✅")
-    else:
-        alasan.append("Volume Lemah ⚠️")
-        
-    if diatas:
-        bs += 1
-        alasan.append("Di atas EMA21 ✅")
-    else:
-        alasan.append("Di bawah EMA21 ⚠️")
-        
-    if cond_val:
-        bs += 1
-    
-    # Sinyal BSJP aktif jika minimal 4 dari 5 kriteria utama terpenuhi dan likuiditas cukup
-    if bs >= 4 and cond_val:
-        return "BSJP", alasan, bs
-    return "TUNGGU", alasan, bs
-
-# ─────────────────────────────────────────────────────────────────────────────
-# CONFIDENCE SCORING HELPERS
-# ─────────────────────────────────────────────────────────────────────────────
-def hitung_confidence_classic(ind, harga, sinyal):
+def hitung_confidence(ind, harga, sinyal, bsjp_metrics=None, taktik="🟣 BSJP (Beli Sore Jual Pagi)"):
     if ind is None:
         return 25, "❓ Data kurang", "#6b7280"
-    rsi    = ind.get("RSI", 50)
-    ema9   = ind.get("EMA9", harga)
-    ema21  = ind.get("EMA21", harga)
-    ema50  = ind.get("EMA50", harga)
-    mh     = ind.get("MACD_hist", 0)
-    macd   = ind.get("MACD", 0)
-    vol    = ind.get("volume", 0)
-    volma  = ind.get("vol_ma20", vol or 1)
-    score  = 0
-
-    if sinyal in ("BELI", "BSJP"):
-        if   rsi < 30: score += 25
-        elif rsi < 40: score += 20
-        elif rsi < 50: score += 14
-        elif rsi < 55: score += 7
-        if ema9 > ema21:
-            margin = (ema9 - ema21) / ema21 * 100
-            score += min(20, int(10 + margin * 5))
-        if harga > ema50: score += 15
-        elif harga > ema50 * 0.98: score += 7
-        if mh > 0:
-            score += 10
-            if macd > 0: score += 10
-        if volma > 0:
-            ratio = vol / volma
-            if   ratio >= 2.0: score += 20
-            elif ratio >= 1.5: score += 15
-            elif ratio >= 1.2: score += 10
-            elif ratio >= 1.0: score += 5
-    elif sinyal == "JUAL":
-        if   rsi > 80: score += 25
-        elif rsi > 70: score += 18
-        elif rsi > 60: score += 8
-        if ema9 < ema21:
-            margin = (ema21 - ema9) / ema21 * 100
-            score += min(20, int(10 + margin * 5))
-        if harga < ema50: score += 15
-        if mh < 0: score += 20
-        if vol > volma * 1.2: score += 20
+    if bsjp_metrics:
+        total_criteria = len(bsjp_metrics)
+        met_criteria = sum(1 for v in bsjp_metrics.values() if v)
+        score = int(met_criteria / total_criteria * 100)
     else:
-        score = max(20, min(45, int(50 - abs(rsi - 50))))
-
+        score = 25
     score = max(10, min(100, score))
-    if   score >= 80: label, color = "🔥 Sangat Kuat",   "#10b981"
-    elif score >= 65: label, color = "💪 Kuat",           "#84cc16"
+    if   score >= 80: label, color = "🔥 Sangat Kuat",  "#22c55e"
+    elif score >= 65: label, color = "💪 Kuat",          "#84cc16"
     elif score >= 50: label, color = "✅ Cukup",          "#f59e0b"
-    elif score >= 35: label, color = "⚠️ Lemah",         "#f97316"
+    elif score >= 35: label, color = "⚠️ Lemah",          "#f97316"
     else:             label, color = "❌ Sangat Lemah",   "#ef4444"
     return score, label, color
 
-def hitung_confidence_bpjs(bs):
-    score = int(bs * 20)
-    score = max(10, min(100, score))
-    if   score >= 100: label, color = "🔥 Sangat Kuat",   "#10b981"
-    elif score >= 80:  label, color = "💪 Kuat",           "#84cc16"
-    elif score >= 60:  label, color = "✅ Cukup",          "#f59e0b"
-    elif score >= 40:  label, color = "⚠️ Lemah",         "#f97316"
-    else:              label, color = "❌ Sangat Lemah",   "#ef4444"
-    return score, label, color
-
-def hitung_confidence_ara(bs):
-    score = int(bs * 20)
-    score = max(10, min(100, score))
-    if   score >= 100: label, color = "🔥 Sangat Kuat",   "#10b981"
-    elif score >= 80:  label, color = "💪 Kuat",           "#84cc16"
-    elif score >= 60:  label, color = "✅ Cukup",          "#f59e0b"
-    elif score >= 40:  label, color = "⚠️ Lemah",         "#f97316"
-    else:              label, color = "❌ Sangat Lemah",   "#ef4444"
-    return score, label, color
-
-def hitung_confidence_bsjp(bs):
-    score = int(bs * 20)
-    score = max(10, min(100, score))
-    if   score >= 100: label, color = "🔥 Sangat Kuat",   "#a855f7"
-    elif score >= 80:  label, color = "💪 Kuat",           "#c084fc"
-    elif score >= 60:  label, color = "✅ Cukup",          "#d8b4fe"
-    elif score >= 40:  label, color = "⚠️ Lemah",         "#e9d5ff"
-    else:              label, color = "❌ Sangat Lemah",   "#f3e8ff"
-    return score, label, color
-
-# ─────────────────────────────────────────────────────────────────────────────
-# BEGINNER-FRIENDLY TACTICAL ANALYSES (1-2 sentences maximum)
-# ─────────────────────────────────────────────────────────────────────────────
-def buat_analisis_singkat_classic(ind, harga, sinyal, chg):
+def buat_analisis_singkat(ind, harga, sinyal, chg, bsjp_metrics=None, taktik="🟣 BSJP (Beli Sore Jual Pagi)", is_owner=False):
     if ind is None or not ind:
-        return "Data historis kurang mencukupi untuk dianalisis."
-    rsi = ind.get("RSI", 50)
-    ema9 = ind.get("EMA9", harga)
-    ema21 = ind.get("EMA21", harga)
-    mh = ind.get("MACD_hist", 0)
-    vol = ind.get("volume", 0)
-    volma = ind.get("vol_ma20", vol or 1)
-    
-    if sinyal == "BELI":
-        alasan = f"Saham ini terdeteksi masuk area beli karena tren jangka pendek menguat (EMA9 > EMA21)."
-        if mh > 0:
-            alasan += " Didukung oleh histogram MACD yang positif (+) menandakan momentum naik bertambah kuat."
-        if vol >= volma * 1.15:
-            alasan += f" Ada lonjakan volume transaksi harian sebesar {(vol/volma - 1)*100:.0f}% di atas rata-rata 20 hari."
-        if rsi < 50:
-            alasan += f" RSI di angka {rsi:.0f} menunjukkan harga belum terlalu mahal (belum jenuh beli)."
-        return alasan
-    elif sinyal == "BSJP":
-        return f"Saham menunjukkan akumulasi beli kuat di akhir sesi dengan RSI {rsi:.0f} dan MACD positif. Sangat direkomendasikan untuk dibeli sore ini menjelang tutup pasar (15:50 WIB) lalu dijual besok pagi saat ada lonjakan pembukaan."
-    elif sinyal == "JUAL":
-        alasan = "Tren harga melemah tajam."
-        if ema9 < ema21:
-            alasan += " Garis EMA9 memotong ke bawah EMA21 (Death Cross) menandakan tren turun dimulai."
-        if mh < 0:
-            alasan += " MACD berada di area negatif (-)."
-        if rsi > 70:
-            alasan += f" RSI berada di {rsi:.0f} (jenuh beli), rawan aksi ambil untung (profit taking) oleh trader lain."
-        return alasan + " Disarankan untuk segera Jual/Cut Loss untuk mengamankan modal."
-    return f"Kondisi harga sedang konsolidasi sampingan (sideways). RSI berada di level netral {rsi:.0f}. Disarankan menunggu momentum breakout yang lebih jelas."
-
-def buat_analisis_singkat_bpjs(ind, harga, sinyal, chg, bpjs_min_chg, bpjs_min_val):
-    if ind is None or not ind:
-        return "Data tidak mencukupi untuk menganalisis taktik BPJS."
-    
-    prev_close = ind.get("prev_close", harga)
-    open_today = ind.get("open_today", harga)
-    prev_volume = ind.get("prev_volume", 0)
-    vol_today = ind.get("volume", 0)
-    ma5 = ind.get("MA5", harga)
-    value_today = ind.get("value_today", 0)
-    
-    chg_prev = ((harga - prev_close) / prev_close * 100) if prev_close > 0 else 0
-    pct_prev = (vol_today / prev_volume * 100) if prev_volume > 0 else 0
-    
-    if sinyal == "BELI":
-        return f"Saham melesat {chg_prev:+.1f}% (di atas target min {bpjs_min_chg}%) dengan volume pagi mencapai {pct_prev:.0f}% dari total volume kemarin. Didukung transaksi likuid Rp {value_today/1e9:.1f} Miliar dan harga bertahan di atas MA5, menjadikannya sangat kuat untuk taktik Beli Pagi Jual Sore."
-    return f"Saham belum direkomendasikan untuk BPJS karena kenaikan hari ini ({chg_prev:+.1f}%) atau volume pagi hari ini ({pct_prev:.0f}%) belum memenuhi syarat akumulasi minimum."
-
-def buat_analisis_singkat_ara(ind, harga, sinyal, chg, ara_min_chg, ara_min_val):
-    if ind is None or not ind:
-        return "Data tidak mencukupi untuk menganalisis taktik ARA."
-    
-    prev_volume = ind.get("prev_volume", 0)
-    vol_ma20 = ind.get("vol_ma20", 1)
-    chg_kemarin = ind.get("chg_kemarin", 0.0)
-    value_today = ind.get("value_today", 0)
-    
-    if sinyal == "BELI":
-        return f"Terjadi akumulasi volume raksasa kemarin ({prev_volume / vol_ma20:.1f}x lipat dari rata-rata MA20) dengan return kemarin {chg_kemarin:+.1f}%. Hari ini didukung oleh aliran uang besar (Smart Money) senilai Rp {value_today/1e9:.1f} Miliar dan harga sedang breakout di atas MA5. Potensi melesat tinggi mengejar batas ARA!"
-    return f"Saham belum terdeteksi mengalami akumulasi volume bandar kemarin atau aliran dana besar hari ini (saat ini Rp {value_today/1e9:.1f} Miliar, target min {ara_min_val} Miliar)."
-
-def buat_analisis_singkat_bsjp(ind, harga, sinyal, chg, max_rsi, min_val):
-    if ind is None or not ind:
-        return "Data tidak mencukupi untuk menganalisis taktik BSJP."
-    rsi = ind.get("RSI", 50)
-    if sinyal == "BSJP":
-        return f"Saham terdeteksi mengalami akumulasi akhir sesi dengan RSI aman {rsi:.0f} (< {max_rsi}) dan MACD positif. Sangat cocok dibeli sebelum tutup pasar (15:50 WIB) untuk dijual besok pagi."
-    return f"Saham belum direkomendasikan untuk BSJP karena RSI berada di {rsi:.0f} (target < {max_rsi}) atau belum memenuhi kriteria volume akumulasi sore."
-
-def generate_outcome_narrative(entry):
-    sym = entry["symbol"]
-    ret = entry.get("return_pct")
-    outcome = entry.get("outcome")
-    taktik = entry.get("sinyal")
-    t_pct = entry.get("target_pct", 5.0)
-    s_pct = entry.get("sl_pct", 3.0)
-    
-    if outcome is None or ret is None:
-        return f"⏳ **Saham {sym}** ({taktik}): Menunggu data perdagangan hari bursa berikutnya untuk dievaluasi."
-        
-    if "HIT_TARGET" in outcome or "PROFIT" in outcome:
-        return f"🟢 **Saham {sym}** ({taktik}): Terbukti **BERHASIL** karena naik hingga **{ret:+.2f}%** (melewati target TP {t_pct}%). Jika Anda mengikuti saran scanner, Anda pasti cuan! 💰"
-    elif "HIT_SL" in outcome or "LOSS" in outcome:
-        return f"🔴 **Saham {sym}** ({taktik}): **MELESET** karena harga turun hingga **{ret:+.2f}%** (menembus batas SL -{s_pct}%). Tekanan jual pasar lebih kuat hari ini, disiplin cut loss menyelamatkan modal Anda dari kerugian dalam. 🛡️"
-    else:
-        return f"🟡 **Saham {sym}** ({taktik}): Ditutup stabil dengan return **{ret:+.2f}%**."
+        return "Data historis tidak mencukupi untuk melakukan analisis teknikal."
+    if bsjp_metrics:
+        total_criteria = len(bsjp_metrics)
+        met_criteria = sum(1 for v in bsjp_metrics.values() if v)
+        if is_owner:
+            met_list = [k for k, v in bsjp_metrics.items() if v]
+            unmet_list = [k for k, v in bsjp_metrics.items() if not v]
+            if sinyal in ("BELI", "BSJP"):
+                return (
+                    f"🌟 Saham memenuhi **seluruh kriteria {taktik}**! Kenaikan {chg:.1f}% sehat, "
+                    f"kriteria terpenuhi: {', '.join(met_list)}."
+                )
+            else:
+                missing_str = ", ".join(unmet_list)
+                return (
+                    f"⏳ Belum memenuhi syarat {taktik}. "
+                    f"Kriteria terpenuhi: {', '.join(met_list)}. "
+                    f"Kriteria kurang: <span style='color:#ef4444;font-weight:bold;'>{missing_str}</span>."
+                )
+        else:
+            # Mode Privat (Public View) - Sembunyikan detail nama kriteria
+            if sinyal in ("BELI", "BSJP"):
+                return f"🌟 Saham memenuhi **seluruh kriteria analisis** ({met_criteria}/{total_criteria}) untuk taktik yang dipilih. Rekomendasi masuk aktif."
+            else:
+                return f"⏳ Saham memenuhi **{met_criteria} dari {total_criteria} kriteria** rahasia taktik ini. Menunggu konfirmasi penuh."
+    return "Sedang memproses analisis..."
 
 def hitung_lot(modal, harga):
     if harga <= 0: return 0
@@ -886,311 +511,446 @@ def kalkulator(harga, lot, target_pct, sl_pct):
     return {"modal": modal, "ht": ht, "hsl": hsl, "profit": profit, "rugi": rugi}
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FETCH DATA FLOW
+# FETCH DATA (yfinance only)
 # ─────────────────────────────────────────────────────────────────────────────
-@st.cache_data(ttl=86400, show_spinner=False)
-def fetch_watchlist_goapi(mode):
-    try:
-        if mode == "gainer":
-            r = requests.get(f"{BASE_URL}/stock/idx/top_gainer",   headers=GOAPI_HEADERS, timeout=10)
-        elif mode == "loser":
-            r = requests.get(f"{BASE_URL}/stock/idx/top_loser",    headers=GOAPI_HEADERS, timeout=10)
-        else:
-            r = requests.get(f"{BASE_URL}/stock/idx/trending",     headers=GOAPI_HEADERS, params={"type":"volume"}, timeout=10)
-        return [d["symbol"] for d in r.json().get("data",{}).get("results",[])]
-    except:
-        return []
-
-@st.cache_data(ttl=1800, show_spinner=False)
-def fetch_batch_yfinance(syms_tuple):
+@st.cache_data(ttl=120, show_spinner=False)
+def fetch_batch_yfinance(syms_tuple, period="6mo", interval="1d"):
     symbols = list(syms_tuple)
     tickers = [f"{s}.JK" for s in symbols]
     result  = {}
     try:
-        raw = yf.download(tickers, period="6mo", interval="1d", auto_adjust=True, progress=False, threads=True)
+        raw = yf.download(tickers, period=period, interval=interval,
+                          auto_adjust=True, progress=False, threads=True)
         if raw.empty:
             return {}
-            
-        is_multi = isinstance(raw.columns, pd.MultiIndex)
-        
-        for sym in symbols:
-            try:
-                ticker_key = f"{sym}.JK"
-                if is_multi:
-                    if ticker_key in raw.columns.levels[1]:
-                        df = raw.xs(ticker_key, axis=1, level=1).copy()
-                    else:
-                        continue
-                else:
-                    df = raw.copy()
-                
-                df.columns = [c.lower() for c in df.columns]
-                df = df.dropna()
-                if len(df) >= 20:
-                    result[sym] = df
-            except:
-                continue
-    except:
+        if len(symbols) == 1:
+            df = raw.copy()
+            df.columns = [c.lower() for c in df.columns]
+            df = df.dropna()
+            if len(df) >= 20:
+                result[symbols[0]] = df
+        else:
+            for sym in symbols:
+                try:
+                    df = raw.xs(f"{sym}.JK", axis=1, level=1).copy()
+                    df.columns = [c.lower() for c in df.columns]
+                    df = df.dropna()
+                    if len(df) >= 20:
+                        result[sym] = df
+                except:
+                    continue
+    except Exception as e:
         pass
     return result
 
-# ─────────────────────────────────────────────────────────────────────────────
-# QUERY PARAMETER API ENDPOINT & FILTER
-# ─────────────────────────────────────────────────────────────────────────────
-try:
-    query_params = st.query_params
-except AttributeError:
+def hitung_indikator(df):
     try:
-        query_params = st.experimental_get_query_params()
-        query_params = {k: v[0] for k, v in query_params.items()}
+        df = df.copy()
+        c = df["close"]
+        df["RSI"]       = ta.momentum.rsi(c, window=14)
+        df["EMA9"]      = ta.trend.ema_indicator(c, window=9)
+        df["EMA21"]     = ta.trend.ema_indicator(c, window=21)
+        df["EMA50"]     = ta.trend.ema_indicator(c, window=50)
+        macd_obj        = ta.trend.MACD(c)
+        df["MACD"]      = macd_obj.macd()
+        df["MACD_hist"] = macd_obj.macd_diff()
+        df["vol_ma20"]  = df["volume"].rolling(20).mean()
+        
+        # Penambahan SMA untuk BSJP V1
+        df["MA5"]       = c.rolling(5).mean()
+        df["MA20"]      = c.rolling(20).mean()
+        df["MA50"]      = c.rolling(50).mean()
+        return df.iloc[-1].to_dict()
     except:
-        query_params = {}
+        return None
 
-# Background Scanning API (Silent Cron Trigger)
-if "action" in query_params and query_params["action"] == "scan":
-    secret_key = query_params.get("key", "")
-    expected_key = "secure_scalping_key"
-    if secret_key == expected_key:
-        symbols_to_scan = LQ45_POPULER
-        # Panggil fetch secara langsung tanpa cache untuk memastikan real-time data
-        all_data = fetch_batch_yfinance(tuple(symbols_to_scan))
+def tentukan_sinyal(ind, harga, prev, sesi_status, taktik="🟣 BSJP (Beli Sore Jual Pagi)"):
+    if ind is None:
+        return "TUNGGU", ["Data kurang"], {}
+    rsi    = ind.get("RSI", 50)
+    ema9   = ind.get("EMA9", harga)
+    ema21  = ind.get("EMA21", harga)
+    mh     = ind.get("MACD_hist", 0)
+    vol    = ind.get("volume", 0)
+    volma  = ind.get("vol_ma20", vol or 1)
+    
+    ma5    = ind.get("MA5", harga)
+    ma20   = ind.get("MA20", harga)
+    ma50   = ind.get("MA50", harga)
+
+    ara_limit = get_ara_limit(prev)
+    chg = (harga - prev) / prev * 100 if prev > 0 else 0
+    val_today = harga * vol
+
+    # Kriteria default
+    metrics = {}
+    signal_ok = False
+
+    if taktik == "Swing & Scalping Klasik":
+        c_rsi         = 30 <= rsi <= 65
+        c_trend       = ema9 > ema21
+        c_macd        = mh > 0
+        c_value       = val_today >= 5_000_000_000
+        c_vol_spike   = vol >= 1.0 * volma
+        c_chg         = chg > 0.0
         
-        total_new_signals = 0
-        tactics_to_run = [
-            "Swing & Scalping Klasik",
-            "⚡ BPJS Agresif (Custom +2%)",
-            "🎯 ARA Hunter (High Momentum)",
-            "🟣 BSJP (Beli Sore Jual Pagi)"
-        ]
+        signal_ok = c_rsi and c_trend and c_macd and c_value and c_vol_spike and c_chg
+        metrics = {
+            "RSI Sehat (30-65)": c_rsi,
+            "Tren Bullish (EMA9>EMA21)": c_trend,
+            "MACD Histogram > 0": c_macd,
+            "Nilai Transaksi Hari Ini (>=5M)": c_value,
+            "Volume Harian (>=1.0x MA20)": c_vol_spike,
+            "Kenaikan Positif (>0%)": c_chg
+        }
+        alasan = [k for k, v in metrics.items() if v]
+
+    elif taktik == "⚡ BPJS Agresif (Custom +2%)":
+        c_chg         = 2.0 <= chg <= 15.0
+        c_rsi         = 40 <= rsi <= 70
+        c_trend       = ema9 > ema21
+        c_macd        = mh > 0
+        c_value       = val_today >= 10_000_000_000
+        c_vol_spike   = vol >= 1.3 * volma
         
-        for current_taktik in tactics_to_run:
-            results_taktik = []
-            for sym in symbols_to_scan:
-                df = all_data.get(sym)
-                if df is None or df.empty:
-                    continue
-                ind = hitung_indikator(df)
-                harga = float(df["close"].iloc[-1])
-                prev = float(df["close"].iloc[-2]) if len(df) > 1 else harga
-                vol = float(df["volume"].iloc[-1]) if "volume" in df.columns else 0
-                chg = (harga - prev) / prev * 100 if prev > 0 else 0
-                
-                if current_taktik == "⚡ BPJS Agresif (Custom +2%)":
-                    sinyal, alasan, bs_count = tentukan_sinyal_bpjs_agresif(ind, harga, 2.0, 2)
-                    confidence, conf_label, conf_color = hitung_confidence_bpjs(bs_count)
-                elif current_taktik == "🎯 ARA Hunter (High Momentum)":
-                    sinyal, alasan, bs_count = tentukan_sinyal_ara_hunter(ind, harga, 3.0, 5)
-                    confidence, conf_label, conf_color = hitung_confidence_ara(bs_count)
-                elif current_taktik == "🟣 BSJP (Beli Sore Jual Pagi)":
-                    sinyal, alasan, bs_count = tentukan_sinyal_bsjp(ind, harga, 58, 2)
-                    confidence, conf_label, conf_color = hitung_confidence_bsjp(bs_count)
-                else:
-                    sinyal, alasan = tentukan_sinyal_classic(ind, harga, "buka")
-                    confidence, conf_label, conf_color = hitung_confidence_classic(ind, harga, sinyal)
-                    
-                lot = hitung_lot(1_000_000, harga)
-                k = kalkulator(harga, lot, 5.0, 3.0)
-                
-                results_taktik.append({
-                    "symbol": sym, "harga": harga, "chg": chg, "vol": vol,
-                    "sinyal": sinyal, "alasan": alasan, "ind": ind or {},
-                    "lot": lot, "k": k, "confidence": confidence,
-                    "conf_label": conf_label, "conf_color": conf_color
-                })
-            
-            # Daftarkan nama taktik secara global agar record_signals menggunakannya
-            globals()["taktik_trading"] = current_taktik
-            new_count = record_signals(results_taktik, 1_000_000, 5.0, 3.0)
-            total_new_signals += new_count
-            
-        st.json({"status": "success", "new_signals": total_new_signals})
-        st.stop()
+        signal_ok = c_chg and c_rsi and c_trend and c_macd and c_value and c_vol_spike
+        metrics = {
+            "Kenaikan Agresif (2%-15%)": c_chg,
+            "RSI Kuat (40-70)": c_rsi,
+            "Tren Bullish (EMA9>EMA21)": c_trend,
+            "MACD Histogram > 0": c_macd,
+            "Nilai Transaksi Hari Ini (>=10M)": c_value,
+            "Lonjakan Volume (>=1.3x MA20)": c_vol_spike
+        }
+        alasan = [k for k, v in metrics.items() if v]
+
+    elif taktik == "🎯 ARA Hunter (High Momentum)":
+        # Min return dinamis untuk ARA hunter
+        if prev < 50:    min_chg = 6.0
+        elif prev <= 200: min_chg = 25.0
+        elif prev <= 5000:min_chg = 18.0
+        else:             min_chg = 15.0
+
+        c_vol_spike   = vol >= 2.0 * volma
+        c_value       = val_today >= 30_000_000_000
+        c_rsi         = rsi >= 65
+        c_macd        = mh > 0
+        c_min_chg     = chg >= min_chg
+        c_max_chg     = chg < ara_limit
+        
+        signal_ok = c_vol_spike and c_value and c_rsi and c_macd and c_min_chg and c_max_chg
+        metrics = {
+            "Volume Ekstrem (>=2.0x MA20)": c_vol_spike,
+            "Nilai Transaksi Hari Ini (>=30M)": c_value,
+            "RSI Sangat Kuat (>=65)": c_rsi,
+            "MACD Histogram > 0": c_macd,
+            "Kenaikan Tinggi": c_min_chg,
+            "Di Bawah ARA": c_max_chg
+        }
+        alasan = [k for k, v in metrics.items() if v]
+
+    elif taktik == "🟣 BSJP (Beli Sore Jual Pagi)":
+        c_vol_spike   = vol >= 1.2 * volma
+        c_value       = val_today >= 20_000_000_000
+        c_volma20     = volma >= 1_000_000
+        c_trend_med   = ma20 >= ma50
+        c_trend_short = ma5 >= ma20
+        c_min_chg     = chg > 5.0
+        c_max_chg     = chg <= (ara_limit - 1.0)
+        
+        signal_ok = c_vol_spike and c_value and c_volma20 and c_trend_med and c_trend_short and c_min_chg and c_max_chg
+        metrics = {
+            "Lonjakan Volume (>=1.2x MA20)": c_vol_spike,
+            "Nilai Transaksi Hari Ini (>=20M)": c_value,
+            "Rata-rata Vol MA20 >= 1 Juta": c_volma20,
+            "Tren Menengah (MA20 >= MA50)": c_trend_med,
+            "Momentum Pendek (MA5 >= MA20)": c_trend_short,
+            "Kenaikan Sore (>5%)": c_min_chg,
+            "Kenaikan <= ARA": c_max_chg
+        }
+        alasan = [k for k, v in metrics.items() if v]
+
+    # Kita kembalikan sinyal BPJS atau BSJP atau ARA Hunter atau TUNGGU
+    if signal_ok:
+        if taktik == "🟣 BSJP (Beli Sore Jual Pagi)":
+            return "BSJP", alasan, metrics
+        else:
+            return "BELI", alasan, metrics
+    
+    # Check JUAL
+    js = 0
+    if rsi > 75: js += 2
+    if ema9 < ema21: js += 1
+    if mh < 0: js += 1
+    if harga < ema21: js += 1
+    
+    if js >= 3:
+        return "JUAL", ["Tren Melemah / Jenuh Beli ⚠️"], metrics
+        
+    return "TUNGGU", ["Menunggu Konfirmasi Momentum"], metrics
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SIDEBAR CONFIGURATION (Clean & Beginner-Focused)
+# SIDEBAR
 # ─────────────────────────────────────────────────────────────────────────────
-st.sidebar.markdown("## ⚙️ Setelan Utama")
-
-taktik_options = ["Swing & Scalping Klasik", "⚡ BPJS Agresif (Custom +2%)", "🎯 ARA Hunter (High Momentum)", "🟣 BSJP (Beli Sore Jual Pagi)"]
-query_taktik = query_params.get("taktik", "")
-default_taktik_index = 0
-if query_taktik in taktik_options:
-    default_taktik_index = taktik_options.index(query_taktik)
-
-taktik_trading = st.sidebar.selectbox(
-    "🎯 Taktik Trading:",
-    taktik_options,
-    index=default_taktik_index
-)
-
-modal_per_saham = st.sidebar.number_input(
-    "💰 Modal per Saham (Rp):",
-    min_value=50_000, max_value=50_000_000,
-    value=1_000_000, step=100_000, format="%d"
-)
-
-# Advanced parameters collapsed to keep it beginner-friendly
-with st.sidebar.expander("⚙️ Setelan Lanjutan", expanded=False):
-    mode_saham = st.radio("📊 Sumber Saham:", [
-        "🤖 Auto (Rekomendasi AI)",
-        "🔥 Top Gainer (GoAPI)",
-        "📉 Top Loser / Rebound (GoAPI)",
-        "🌊 Trending Volume (GoAPI)",
-        "💎 LQ45 + Populer (Offline)",
-        "✏️ Manual"
-    ], index=0)
-    
-    use_auto_count = st.checkbox("📋 Gunakan Jumlah Saham Auto", value=True, help="Menyesuaikan jumlah pemindaian saham secara optimal berdasarkan taktik yang Anda pilih.")
-    if use_auto_count:
-        st.caption("🤖 *Jumlah saham ditentukan secara otomatis oleh AI.*")
-        max_saham = 20
-    else:
-        max_saham = st.slider("📋 Jumlah Saham", 5, len(LQ45_POPULER), 20)
-    
-    target_pct = st.slider("🎯 Target Profit (%)", 1.0, 20.0, 5.0, 0.5)
-    sl_pct     = st.slider("🛑 Stop Loss (%)", 1.0, 10.0, 3.0, 0.5)
-    
-    bpjs_min_chg = st.slider("⚡ Min Kenaikan BPJS (%)", 1.0, 5.0, 2.0, 0.5)
-    bpjs_min_val = st.slider("⚡ Min Transaksi BPJS (Miliar Rp)", 1, 10, 2, 1)
-    
-    ara_min_chg = st.slider("🎯 Min Ret Kemarin ARA (%)", 1.0, 8.0, 3.0, 0.5)
-    ara_min_val = st.slider("🎯 Min Transaksi ARA (Miliar Rp)", 1, 20, 5, 1)
-    
-    bsjp_max_rsi = st.slider("🟣 Max RSI BSJP", 45, 65, 58, 1)
-    bsjp_min_val = st.slider("🟣 Min Transaksi BSJP (Miliar Rp)", 1, 10, 2, 1)
-    
-    manual_input = ""
-    if "Manual" in mode_saham:
-        manual_input = st.text_area(
-            "Kode saham (pisahkan koma):",
-            "BBCA,BBRI,TLKM,GOTO,BREN,ASII,MDKA,AMMN,ANTM,BMRI"
-        )
-
-if st.sidebar.button("🔄 Refresh & Pindai Ulang", use_container_width=True):
+# 🔄 Refresh Data (Tombol paling atas)
+if st.sidebar.button("🔄 Refresh Data", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
 
+st.sidebar.markdown("## ⚙️ Setelan Utama")
+
+# 🎯 Taktik Trading
+taktik = st.sidebar.selectbox(
+    "🎯 Taktik Trading:",
+    [
+        "Swing & Scalping Klasik",
+        "⚡ BPJS Agresif (Custom +2%)",
+        "🎯 ARA Hunter (High Momentum)",
+        "🟣 BSJP (Beli Sore Jual Pagi)"
+    ],
+    index=3  # Default: BSJP
+)
+
+# Info Box Taktik (Clean & Simple)
+if taktik == "Swing & Scalping Klasik":
+    st.sidebar.info("💡 **Swing & Scalping Klasik**: Skrining dengan kombinasi indikator tren dan momentum seimbang, cocok untuk pemula dan swing trading jangka pendek.")
+elif taktik == "⚡ BPJS Agresif (Custom +2%)":
+    st.sidebar.info("💡 **BPJS Agresif**: Skrining saham momentum tinggi dengan minimal kenaikan hari ini +2% untuk trading kilat (scalping agresif).")
+elif taktik == "🎯 ARA Hunter (High Momentum)":
+    st.sidebar.info("💡 **ARA Hunter**: Skrining saham ber-volume masif yang sedang menuju/berpotensi mengunci kenaikan tertinggi (ARA).")
+elif taktik == "🟣 BSJP (Beli Sore Jual Pagi)":
+    st.sidebar.info("💡 **BSJP**: Skrining sore hari menjelang tutup bursa untuk menangkap saham yang diakumulasi dan berpotensi naik besok pagi.")
+
+# 🔍 Filter & Sortir
+st.sidebar.markdown("### 🔍 Filter & Sortir")
+filter_sinyal = st.sidebar.checkbox("Hanya Sinyal BELI / BSJP", value=False)
+min_confidence = st.sidebar.slider("🔥 Min. Confidence (%)", 10, 100, 30)
+urut_opsi = st.sidebar.selectbox("Urutkan Berdasarkan:", [
+    "Sinyal Teratas (Default)",
+    "Confidence tertinggi",
+    "% Change terbesar",
+    "RSI terendah (Oversold)",
+    "Volume transaksi"
+], index=0)
+
+# 📋 Jumlah Saham (Max 505 sesuai total ALL_SAHAM)
+max_sahams = st.sidebar.slider("📋 Jumlah Saham", 5, 505, 50)
+
+# ⏱️ Expander Timeframe (Lanjutan)
+with st.sidebar.expander("⏱️ Pengaturan Lilin & Grafik (Lanjutan)", expanded=False):
+    st.markdown("""
+    * **Timeframe Analisis (Target):** Menentukan periode grafik lilin untuk perhitungan sinyal teknis.
+    * **Timeframe TradingView:** Menentukan interval lilin default pada grafik interaktif kartu saham.
+    """)
+    tf_display = st.selectbox(
+        "⏱️ Timeframe Analisis (Target):",
+        [
+            "⏱️ Harian - 1 Hari (Rekomendasi BSJP & ARA Hunter)",
+            "⏱️ Menengah - 1 Jam (Rekomendasi Swing & Scalping Klasik)",
+            "⏱️ Scalping - 15 Menit (Rekomendasi BPJS Agresif)",
+            "⏱️ Scalping Cepat - 5 Menit (Scalping Sangat Agresif)"
+        ],
+        index=0
+    )
+    
+    tf_mapping = {
+        "⏱️ Harian - 1 Hari (Rekomendasi BSJP & ARA Hunter)": "1d",
+        "⏱️ Menengah - 1 Jam (Rekomendasi Swing & Scalping Klasik)": "1h",
+        "⏱️ Scalping - 15 Menit (Rekomendasi BPJS Agresif)": "15m",
+        "⏱️ Scalping Cepat - 5 Menit (Scalping Sangat Agresif)": "5m"
+    }
+    tf_option = tf_mapping[tf_display]
+    
+    tf_config_mapping = {
+        "5m":  {"period": "2d",  "interval": "5m"},
+        "15m": {"period": "5d",  "interval": "15m"},
+        "1h":  {"period": "1mo", "interval": "1h"},
+        "1d":  {"period": "6mo", "interval": "1d"}
+    }
+    tf_config = tf_config_mapping[tf_option]
+    
+    tv_interval = st.select_slider(
+        "📈 Timeframe TradingView:",
+        options=["1", "5", "15", "30", "60", "1D", "1W"],
+        value="1D"
+    )
+
+# 💰 Expander Keuangan (Money Management)
+with st.sidebar.expander("💰 Pengaturan Keuangan", expanded=False):
+    modal_per_saham = st.number_input(
+        "💰 Modal per Saham (Rp):",
+        min_value=100_000, max_value=20_000_000,
+        value=500_000, step=50_000, format="%d"
+    )
+    target_pct = st.slider("🎯 Target Profit (%)", 2.0, 20.0, 5.0, 0.5)
+    sl_pct     = st.slider("🛑 Stop Loss (%)",   1.0, 10.0, 3.0, 0.5)
+
+# 🔑 Kode Akses Parameter (Private - Paling bawah)
+st.sidebar.markdown("---")
+access_key = st.sidebar.text_input(
+    "🔑 Kode Akses Parameter (Private):",
+    type="password",
+    help="Masukkan kode akses Anda untuk membuka detail rumus indikator (default disembunyikan untuk umum)."
+)
+is_owner = (access_key == "rafifcuan")
+
 st.sidebar.markdown("""
----
-**📚 Panduan Singkat:**
-* 🟢 **BELI** = Saham siap dieksekusi hari ini.
-* 🟣 **BSJP** = Beli sore menjelang tutup, jual besok pagi.
-* 🔴 **JUAL** = Keluar / Potong Rugi (Cut Loss).
-* ⏳ **TUNGGU** = Belum ada momentum aman.
+**📊 Sinyal:**
+🟢 **BELI** = Sinyal Masuk
+🟣 **BSJP** = Beli Sore Jual Pagi
+🔴 **JUAL** = Exit / Cut Loss
+⏳ **TUNGGU** = Belum ada peluang
+
+**💸 Fee Stockbit:**
+Beli 0.10% + Jual 0.20%
 """)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# HEADER & BURSA STATUS
+# HEADER
 # ─────────────────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="main-header">
-<h1>📈 Scalping IHSG — Dashboard Pemula</h1>
-<p>Scanner Saham Otomatis & Sederhana untuk Keputusan Cepat Tanpa Bingung</p>
+    <h1>📈 Scalping IHSG by Rafif</h1>
+    <p>BPJS · BSJP · yfinance + TradingView · Powered by Stockbit</p>
 </div>
 """, unsafe_allow_html=True)
 
-# Sesi Status
+# ─────────────────────────────────────────────────────────────────────────────
+# AMBIL DAFTAR SAHAM
+# ─────────────────────────────────────────────────────────────────────────────
+with st.spinner("📡 Menyiapkan daftar saham..."):
+    symbols = ALL_SAHAM[:max_sahams]
+
+symbols = symbols[:max_sahams]
+
+# ── TICKER TAPE ───────────────────────────────────────────────────────────────
+components.html(tv_ticker_tape(symbols[:20]), height=72)
+
+# Status Pasar
 sesi_status, sesi_label = get_status_pasar()
 now_str = datetime.now(WIB).strftime("%H:%M:%S WIB — %A, %d %B %Y")
-css_map = {"buka": "pasar-buka", "tutup": "pasar-tutup", "preopen": "pasar-preopen"}
-st.markdown(f'<div class="{css_map[sesi_status]}">{sesi_label} &nbsp;|&nbsp; 🕐 {now_str}</div>', unsafe_allow_html=True)
+css_map = {"buka":"pasar-buka","tutup":"pasar-tutup","preopen":"pasar-preopen"}
+st.markdown(f'<div class="{css_map[sesi_status]}">{sesi_label} &nbsp;|&nbsp; 🕐 {now_str}</div>',
+            unsafe_allow_html=True)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# DATA PIPELINE EXECUTION
-# ─────────────────────────────────────────────────────────────────────────────
-with st.spinner("📡 Mengambil daftar saham teraktif..."):
-    # Resolusi Auto Mode
-    resolved_mode = mode_saham
-    if mode_saham == "🤖 Auto (Rekomendasi AI)":
-        if taktik_trading in ["Swing & Scalping Klasik", "🟣 BSJP (Beli Sore Jual Pagi)"]:
-            resolved_mode = "💎 LQ45 + Populer (Offline)"
-        else:
-            resolved_mode = "🔥 Top Gainer (GoAPI)"
-            
-    # Resolusi Auto Count
-    if use_auto_count:
-        if "LQ45" in resolved_mode:
-            max_saham = 30
-        else:
-            max_saham = 20
-
-    if "Manual" in resolved_mode:
-        symbols = [s.strip().upper() for s in manual_input.split(",") if s.strip()]
-    elif "LQ45" in resolved_mode:
-        symbols = LQ45_POPULER[:max_saham]
-    elif "Gainer" in resolved_mode:
-        raw = fetch_watchlist_goapi("gainer")
-        symbols = (raw or LQ45_POPULER)[:max_saham]
-    elif "Loser" in resolved_mode:
-        raw = fetch_watchlist_goapi("loser")
-        symbols = (raw or LQ45_POPULER)[:max_saham]
-    else:
-        raw = fetch_watchlist_goapi("trending")
-        symbols = (raw or LQ45_POPULER)[:max_saham]
-
-symbols = symbols[:max_saham]
-
-# Deteksi parameter filter saham (Deep-Linking dari Telegram)
-query_saham = query_params.get("saham", "")
-if query_saham:
-    symbols = [query_saham.strip().upper()]
-    st.info(f"🔍 **Menampilkan fokus emiten:** `{query_saham.upper()}`. [Tampilkan Semua Saham (Clear Filter)](/)")
-
-with st.spinner(f"📥 Mengunduh data pasar untuk {len(symbols)} saham..."):
-    all_data = fetch_batch_yfinance(tuple(symbols))
+# ── Download data yfinance ────────────────────────────────────────────────────
+with st.spinner(f"📥 Mengunduh data {len(symbols)} saham (interval {tf_option})..."):
+    all_data = fetch_batch_yfinance(tuple(symbols), period=tf_config["period"], interval=tf_config["interval"])
 
 if not all_data:
-    st.error("❌ Gagal terhubung ke server data. Silakan klik 'Refresh & Pindai Ulang' di sidebar.")
+    st.error("❌ Gagal unduh data. Cek koneksi internet.")
     st.stop()
 
-# Evaluate signals
+# ─────────────────────────────────────────────────────────────────────────────
+# HITUNG SINYAL
+# ─────────────────────────────────────────────────────────────────────────────
 results = []
-for sym in symbols:
+prog = st.progress(0, text="Menghitung indikator...")
+for i, sym in enumerate(symbols):
     df = all_data.get(sym)
     if df is None or df.empty:
+        prog.progress((i+1)/len(symbols))
         continue
     ind   = hitung_indikator(df)
     harga = float(df["close"].iloc[-1])
     prev  = float(df["close"].iloc[-2]) if len(df) > 1 else harga
     vol   = float(df["volume"].iloc[-1]) if "volume" in df.columns else 0
     chg   = (harga - prev) / prev * 100 if prev > 0 else 0
-    
-    if taktik_trading == "⚡ BPJS Agresif (Custom +2%)":
-        sinyal, alasan, bs_count = tentukan_sinyal_bpjs_agresif(ind, harga, bpjs_min_chg, bpjs_min_val)
-        confidence, conf_label, conf_color = hitung_confidence_bpjs(bs_count)
-    elif taktik_trading == "🎯 ARA Hunter (High Momentum)":
-        sinyal, alasan, bs_count = tentukan_sinyal_ara_hunter(ind, harga, ara_min_chg, ara_min_val)
-        confidence, conf_label, conf_color = hitung_confidence_ara(bs_count)
-    elif taktik_trading == "🟣 BSJP (Beli Sore Jual Pagi)":
-        sinyal, alasan, bs_count = tentukan_sinyal_bsjp(ind, harga, bsjp_max_rsi, bsjp_min_val)
-        confidence, conf_label, conf_color = hitung_confidence_bsjp(bs_count)
-    else:
-        sinyal, alasan = tentukan_sinyal_classic(ind, harga, sesi_status)
-        confidence, conf_label, conf_color = hitung_confidence_classic(ind, harga, sinyal)
-        
+    sinyal, alasan, bsjp_metrics = tentukan_sinyal(
+        ind, harga, prev, sesi_status,
+        taktik=taktik
+    )
+    confidence, conf_label, conf_color = hitung_confidence(ind, harga, sinyal, bsjp_metrics, taktik)
     lot = hitung_lot(modal_per_saham, harga)
     k   = kalkulator(harga, lot, target_pct, sl_pct)
     
-    results.append({
-        "symbol": sym, "harga": harga, "chg": chg, "vol": vol,
-        "sinyal": sinyal, "alasan": alasan, "ind": ind or {},
-        "lot": lot, "k": k, "confidence": confidence,
-        "conf_label": conf_label, "conf_color": conf_color
-    })
+    # Hitung rata-rata nilai transaksi harian 5 hari (Rupiah)
+    df_copy = df.copy()
+    df_copy["value"] = df_copy["close"] * df_copy["volume"]
+    val_5d = float(df_copy["value"].tail(5).mean()) if len(df_copy) >= 5 else (harga * vol)
+    
+    results.append({"symbol":sym,"harga":harga,"prev":prev,"chg":chg,"vol":vol,"val_5d":val_5d,
+                    "sinyal":sinyal,"alasan":alasan,"ind":ind or {},
+                    "lot":lot,"k":k,
+                    "confidence":confidence,"conf_label":conf_label,"conf_color":conf_color,
+                    "bsjp_metrics":bsjp_metrics})
+    prog.progress((i+1)/len(symbols), text=f"✅ {sym}")
+prog.empty()
 
-# Sort results (BUY signals first, then by highest confidence score)
-urutan = {"BELI": 0, "BSJP": 1, "JUAL": 2, "TUNGGU": 3}
-results.sort(key=lambda x: (urutan.get(x["sinyal"], 9), -x["confidence"]))
-
-# Auto-save signal history
+# ── Auto-save ke Signal History & Kirim Telegram Alerts ────────────────────────
 new_signals = record_signals(results, modal_per_saham, target_pct, sl_pct)
 if new_signals > 0:
-    st.toast(f"📜 {new_signals} sinyal trading baru dicatat!", icon="✅")
+    st.toast(f"✅ {new_signals} sinyal baru disimpan ke Signal History!", icon="📌")
+
+if ENABLE_TG and TG_TOKEN and TG_CHAT_ID:
+    sent_alerts = load_sent_alerts()
+    today_str = datetime.now(WIB).strftime("%Y-%m-%d")
+    alerts_sent_count = 0
+    
+    for r in results:
+        if r["sinyal"] in ("BELI", "BSJP"):
+            if r["confidence"] < min_confidence:
+                continue
+            # Alert key unik per saham, timeframe, dan tipe sinyal harian
+            alert_key = f"{today_str}_{r['symbol']}_{tf_option}_{r['sinyal']}"
+            if alert_key not in sent_alerts:
+                success = send_telegram_alert(TG_TOKEN, TG_CHAT_ID, r, tf_option, target_pct, sl_pct)
+                if success:
+                    sent_alerts[alert_key] = True
+                    alerts_sent_count += 1
+                    
+    if alerts_sent_count > 0:
+        save_sent_alerts(sent_alerts)
+        st.toast(f"🔔 {alerts_sent_count} alert baru dikirim ke Telegram!", icon="💬")
+
+# Apply Sorting and UI Filtering
+filtered_results = []
+for r in results:
+    if filter_sinyal and r["sinyal"] not in ("BELI", "BSJP"):
+        continue
+    if r["confidence"] < min_confidence:
+        continue
+    filtered_results.append(r)
+
+# Tampilkan Status Pemindaian di Sidebar
+st.sidebar.markdown("---")
+st.sidebar.subheader("🔍 Status Pemindaian")
+st.sidebar.write(f"• Saham di Watchlist: **{len(symbols)}**")
+st.sidebar.write(f"• Berhasil Diunduh: **{len(all_data)}**")
+st.sidebar.write(f"• Berhasil Dianalisis: **{len(results)}**")
+st.sidebar.write(f"• Lolos Filter Tampilan: **{len(filtered_results)}**")
+
+if urut_opsi == "Confidence tertinggi":
+    filtered_results.sort(key=lambda x: x["confidence"], reverse=True)
+elif urut_opsi == "% Change terbesar":
+    filtered_results.sort(key=lambda x: x["chg"], reverse=True)
+elif urut_opsi == "RSI terendah (Oversold)":
+    filtered_results.sort(key=lambda x: x["ind"].get("RSI", 100))
+elif urut_opsi == "Volume transaksi":
+    filtered_results.sort(key=lambda x: x["vol"], reverse=True)
+else:
+    urutan = {"BELI":0,"BSJP":1,"JUAL":2,"TUNGGU":3}
+    filtered_results.sort(key=lambda x: urutan.get(x["sinyal"], 9))
+
+# ── Ringkasan Global ──────────────────────────────────────────────────────────
+n_beli   = sum(1 for r in filtered_results if r["sinyal"]=="BELI")
+n_bsjp   = sum(1 for r in filtered_results if r["sinyal"]=="BSJP")
+n_jual   = sum(1 for r in filtered_results if r["sinyal"]=="JUAL")
+n_tunggu = sum(1 for r in filtered_results if r["sinyal"]=="TUNGGU")
+
+c1,c2,c3,c4 = st.columns(4)
+c1.metric("🟢 Sinyal BELI", n_beli,
+          delta="BPJS Ready!" if n_beli else "Belum ada",
+          delta_color="normal" if n_beli else "off")
+c2.metric("🟣 Sinyal BSJP",  n_bsjp,  delta="Overnight!" if n_bsjp else None)
+c3.metric("🔴 Sinyal JUAL",  n_jual)
+c4.metric("⏳ Tunggu",        n_tunggu)
+st.markdown("---")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# UI LAYOUT COMPONENT
+# HELPER RENDER KARTU
 # ─────────────────────────────────────────────────────────────────────────────
-def render_kartu_pemula(r, is_top=False):
+def render_kartu(r, taktik="🟣 BSJP (Beli Sore Jual Pagi)", is_owner=False):
     sym    = r["symbol"]
     harga  = r["harga"]
     chg    = r["chg"]
@@ -1199,304 +959,210 @@ def render_kartu_pemula(r, is_top=False):
     k      = r["k"]
     ind    = r["ind"]
 
-    if sinyal == "BELI":
-        css, tag_css, tag_txt = "card-beli", "tag-green", "🟢 BELI"
-    elif sinyal == "BSJP":
-        css, tag_css, tag_txt = "card-bsjp", "tag-purple", "🟣 BSJP (Beli Sore)"
-    elif sinyal == "JUAL":
-        css, tag_css, tag_txt = "card-jual", "tag-red", "🔴 JUAL / CUT LOSS"
-    else:
-        css, tag_css, tag_txt = "card-tunggu", "tag-gray", "⏳ TUNGGU"
+    if sinyal=="BELI":   css,tag_css,tag_txt = "card-beli",  "tag-green",  "🟢 BELI / ENTRi"
+    elif sinyal=="BSJP": css,tag_css,tag_txt = "card-bsjp",  "tag-purple", "🟣 BELI SORE (BSJP)"
+    elif sinyal=="JUAL": css,tag_css,tag_txt = "card-jual",  "tag-red",    "🔴 JUAL / CUT LOSS"
+    else:                css,tag_css,tag_txt = "card-tunggu","tag-gray",   "⏳ TUNGGU"
 
-    if is_top and sinyal in ("BELI", "BSJP"):
-        tag_txt = "🏆 PILIHAN UTAMA · " + tag_txt
-
-    chg_col  = "#10b981" if chg >= 0 else "#ef4444"
-    chg_sign = "+" if chg >= 0 else ""
+    chg_col  = "#22c55e" if chg>=0 else "#ef4444"
+    chg_sign = "+" if chg>=0 else ""
     
-    # 1. Custom indicator pills based on Tactic
-    if taktik_trading == "⚡ BPJS Agresif (Custom +2%)":
-        prev_close  = ind.get("prev_close", harga)
-        open_today  = ind.get("open_today", harga)
-        prev_volume = ind.get("prev_volume", 0)
-        vol_today   = ind.get("volume", 0)
-        ma5         = ind.get("MA5", harga)
-        value_today = ind.get("value_today", 0)
-        
-        chg_prev   = ((harga - prev_close) / prev_close * 100) if prev_close > 0 else 0
-        cond_chg   = chg_prev >= bpjs_min_chg
-        cond_ma5   = harga >= ma5
-        cond_green = harga >= open_today
-        cond_vol   = vol_today >= 0.2 * prev_volume if prev_volume > 0 else False
-        cond_val   = value_today >= bpjs_min_val * 1_000_000_000
-        
-        pill_chg   = f"Naik {chg_prev:+.1f}% {'✅' if cond_chg else '⚠️'}"
-        pill_ma5   = f"MA5 {'✅' if cond_ma5 else '⚠️'}"
-        pill_green = f"Candle {'Hijau ✅' if cond_green else 'Merah ⚠️'}"
-        pct_prev   = (vol_today / prev_volume * 100) if prev_volume > 0 else 0
-        pill_vol   = f"Vol Pagi {pct_prev:.0f}% {'✅' if cond_vol else '⚠️'}"
-        pill_val   = f"Value {value_today/1e9:.1f}B {'✅' if cond_val else '⚠️'}"
-        
-        pills_html = f"<div><span class='ind-pill'>{pill_chg}</span><span class='ind-pill'>{pill_ma5}</span><span class='ind-pill'>{pill_green}</span><span class='ind-pill'>{pill_vol}</span><span class='ind-pill'>{pill_val}</span></div>"
-        analisis   = buat_analisis_singkat_bpjs(ind, harga, sinyal, chg, bpjs_min_chg, bpjs_min_val)
-        
-    elif taktik_trading == "🎯 ARA Hunter (High Momentum)":
-        prev_close  = ind.get("prev_close", harga)
-        prev_volume = ind.get("prev_volume", 0)
-        vol_today   = ind.get("volume", 0)
-        vol_ma20    = ind.get("vol_ma20", 1)
-        ma5         = ind.get("MA5", harga)
-        ma50        = ind.get("MA50", harga)
-        value_today = ind.get("value_today", 0)
-        high_today  = ind.get("high", harga)
-        low_today   = ind.get("low", harga)
-        
-        chg_prev = ind.get("chg_kemarin", 0.0)
-        
-        cond_vol_kemarin = prev_volume > 1.8 * vol_ma20 if vol_ma20 > 0 else False
-        cond_smart_money = vol_today >= 0.15 * prev_volume if prev_volume > 0 else False
-        cond_chg_prev    = chg_prev >= ara_min_chg
-        cond_breakout    = high_today >= ma5
-        cond_support     = low_today >= 0.95 * ma50
-        cond_val         = value_today >= ara_min_val * 1_000_000_000
-        
-        pill_vol_k   = f"Akumulasi Kemarin {'✅' if cond_vol_kemarin else '⚠️'}"
-        pill_smart   = f"Smart Money {'✅' if cond_smart_money else '⚠️'}"
-        pill_chg_k   = f"Kemarin {chg_prev:+.1f}% {'✅' if cond_chg_prev else '⚠️'}"
-        pill_break   = f"Breakout MA5 {'✅' if cond_breakout else '⚠️'}"
-        pill_support = f"Support MA50 {'✅' if cond_support else '⚠️'}"
-        
-        pills_html = f"<div><span class='ind-pill'>{pill_vol_k}</span><span class='ind-pill'>{pill_smart}</span><span class='ind-pill'>{pill_chg_k}</span><span class='ind-pill'>{pill_break}</span><span class='ind-pill'>{pill_support}</span></div>"
-        analisis   = buat_analisis_singkat_ara(ind, harga, sinyal, chg, ara_min_chg, ara_min_val)
-        
-    elif taktik_trading == "🟣 BSJP (Beli Sore Jual Pagi)":
-        rsi    = ind.get("RSI", 50)
-        ema9   = ind.get("EMA9", harga)
-        ema21  = ind.get("EMA21", harga)
-        mh     = ind.get("MACD_hist", 0)
-        vol    = ind.get("volume", 0)
-        volma  = ind.get("vol_ma20", vol or 1)
-        value_today = ind.get("value_today", 0)
-        
-        cond_rsi = rsi < bsjp_max_rsi
-        cond_bull = ema9 > ema21
-        cond_macd = mh > 0
-        cond_vol = vol >= volma * 1.10 if volma > 0 else False
-        cond_val = value_today >= bsjp_min_val * 1_000_000_000
-        
-        pill_rsi   = f"RSI {rsi:.0f} {'✅' if cond_rsi else '⚠️'}"
-        pill_bull  = f"EMA9>21 {'✅' if cond_bull else '⚠️'}"
-        pill_macd  = f"MACD+ {'✅' if cond_macd else '⚠️'}"
-        pill_vol   = f"Vol Spike {'✅' if cond_vol else '⚠️'}"
-        pill_val   = f"Value {value_today/1e9:.1f}B {'✅' if cond_val else '⚠️'}"
-        
-        pills_html = f"<div><span class='ind-pill'>{pill_rsi}</span><span class='ind-pill'>{pill_bull}</span><span class='ind-pill'>{pill_macd}</span><span class='ind-pill'>{pill_vol}</span><span class='ind-pill'>{pill_val}</span></div>"
-        analisis   = buat_analisis_singkat_bsjp(ind, harga, sinyal, chg, bsjp_max_rsi, bsjp_min_val)
+    if is_owner:
+        rsi      = ind.get("RSI",0)
+        ema9     = ind.get("EMA9",0)
+        ema21    = ind.get("EMA21",0)
+        ema50    = ind.get("EMA50",0)
+        mh       = ind.get("MACD_hist",0)
+        rsi_col  = "#ef4444" if rsi>70 else ("#22c55e" if rsi<40 else "#f59e0b")
+        pills_html = (
+            f'<span class="ind-pill" style="color:{rsi_col}">RSI {rsi:.0f}</span>'
+            f'<span class="ind-pill">EMA9 {ema9:,.0f}</span>'
+            f'<span class="ind-pill">Val 5D: {r.get("val_5d", 0)/1_000_000_000:.1f}M</span>'
+            f'<span class="ind-pill">EMA50 {ema50:,.0f}</span>'
+            f'<span class="ind-pill">MACD {"▲" if mh>0 else "▼"} {mh:.2f}</span>'
+        )
     else:
-        rsi      = ind.get("RSI", 50)
-        ema9     = ind.get("EMA9", harga)
-        ema21    = ind.get("EMA21", harga)
-        ema50    = ind.get("EMA50", harga)
-        mh       = ind.get("MACD_hist", 0)
-        rsi_col  = "#ef4444" if rsi > 70 else ("#10b981" if rsi < 40 else "#f59e0b")
-        ema50_col = "#10b981" if harga > ema50 else "#ef4444"
-        
-        pills_html = f"<div><span class='ind-pill'>RSI <b style='color:{rsi_col}'>{rsi:.0f}</b></span><span class='ind-pill'>{'EMA9>21 ✅' if ema9>ema21 else 'EMA9<21 ⚠️'}</span><span class='ind-pill'>{'MACD+ ✅' if mh>0 else 'MACD- ⚠️'}</span><span class='ind-pill'>EMA50 <b style='color:{ema50_col}'>{ema50:.0f}</b></span></div>"
-        analisis   = buat_analisis_singkat_classic(ind, harga, sinyal, chg)
-
+        pills_html = (
+            f'<span class="ind-pill">Volume: Teranalisis</span>'
+            f'<span class="ind-pill">Likuiditas: Teranalisis</span>'
+            f'<span class="ind-pill">Tren: Teranalisis</span>'
+        )
+    
+    analisis = buat_analisis_singkat(ind, harga, sinyal, chg, r.get("bsjp_metrics"), taktik, is_owner)
     confidence = r.get("confidence", 50)
     conf_label = r.get("conf_label", "Cukup")
     conf_color = r.get("conf_color", "#cbd5e1")
 
-    # 2. Integrated Calculator inside Card
-    calc_html = ""
-    if k and lot > 0:
-        profit_color = "#10b981" if k["profit"] >= 0 else "#ef4444"
-        calc_html = f"""<div class="card-kalkulator">
-🧮 <b>Rencana Eksekusi:</b><br>
-• Jumlah Beli: <b>{lot} lot</b> ({lot*100:,} lbr) | Modal: <b>Rp {k['modal']:,.0f}</b><br>
-• Target Jual (TP): <b style="color:#10b981">Rp {snap_fraksi(k['ht']):,}</b> (+{target_pct}%)<br>
-• Batas Rugi (SL): <b style="color:#ef4444">Rp {snap_fraksi(k['hsl']):,}</b> (-{sl_pct}%)<br>
-• Estimasi Bersih: <span style="color:{profit_color}; font-weight:700">Untung Rp {k['profit']:,.0f}</span> / <span style="color:#ef4444; font-weight:700">Rugi Rp {abs(k['rugi']):,.0f}</span>
-</div>"""
-    elif lot == 0:
-        calc_html = f"""<div class="card-kalkulator" style="border-left: 3px solid #f59e0b; background: rgba(245, 158, 11, 0.05)">
-⚠️ <b>Modal Tidak Cukup:</b><br>
-Minimal modal untuk 1 lot ({sym}) adalah <b>Rp {harga*100:,.0f}</b>.
-</div>"""
-
-    card_html = f"""<div class="{css}">
-<div style="display:flex;justify-content:space-between;align-items:flex-start">
-<span class="card-sym">{sym}</span>
-<span class="{tag_css}">{tag_txt}</span>
-</div>
-<p class="card-price">Rp {harga:,.0f}</p>
-<p style="font-size:0.88rem;color:{chg_col};margin:0 0 6px 0;font-weight:700">
-{chg_sign}{chg:.2f}% &nbsp;<span style="color:#94a3b8;font-weight:400">Vol {r['vol']:,.0f}</span>
-</p>
-<div style="margin: 8px 0 10px 0;">
-<div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#cbd5e1; margin-bottom:3px;">
-<span>📊 Kekuatan Sinyal</span>
-<span style="font-weight:700; color:{conf_color}">{confidence}% · {conf_label}</span>
-</div>
-<div style="background: rgba(255,255,255,0.1); border-radius: 4px; height: 6px; width: 100%; overflow: hidden;">
-<div style="background: {conf_color}; width: {confidence}%; height: 100%; border-radius: 4px;"></div>
-</div>
-</div>
-{pills_html}
-<p style="font-size:0.83rem;color:#e2e8f0;margin:12px 0 0 0;line-height:1.5;">{analisis}</p>
-{calc_html}
-</div>"""
-
-    st.markdown(card_html, unsafe_allow_html=True)
-
-# ─────────────────────────────────────────────────────────────────────────────
-# VIEW TABS & RENDER
-# ─────────────────────────────────────────────────────────────────────────────
-tab_dash, tab_hist = st.tabs(["📊 Hasil Pindai Saham", "📜 Riwayat Sinyal & Win-Rate"])
-
-with tab_dash:
-    # Split into Beli/BSJP vs Wait/Sell
-    beli_results  = [r for r in results if r["sinyal"] in ("BELI", "BSJP")]
-    other_results = [r for r in results if r["sinyal"] not in ("BELI", "BSJP")]
-
-    # Dynamic Trade Plan Execution Guide based on Tactic
-    guide_html = ""
-    if taktik_trading == "Swing & Scalping Klasik":
-        guide_html = """<div style="background: rgba(59, 130, 246, 0.05); border-left: 4px solid #3b82f6; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-💡 <b>Panduan Eksekusi - Swing & Scalping Klasik:</b><br>
-• <b>Jam Eksekusi:</b> Beli pagi (09:00 - 09:30 WIB) or sore (14:30 - 15:30 WIB).<br>
-• <b>Caranya:</b> Entry beli saat sinyal 🟢 <b>BELI</b> muncul. Pasang target TP 5% dan SL 3% otomatis di sekuritas Anda. Hold santai 1-5 hari sampai target kena.
-</div>"""
-    elif taktik_trading == "⚡ BPJS Agresif (Custom +2%)":
-        guide_html = """<div style="background: rgba(16, 185, 129, 0.05); border-left: 4px solid #10b981; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-💡 <b>Panduan Eksekusi - BPJS Agresif (Beli Pagi Jual Sore):</b><br>
-• <b>Jam Eksekusi:</b> <b>09:00 - 09:10 WIB</b> (10 menit pertama saat pembukaan bursa).<br>
-• <b>Caranya:</b> Cari saham berstatus 🟢 <b>BELI</b> yang bergerak naik cepat (volume tinggi + bid tebal). HAKA cepat, langsung antrekan jual otomatis di target <b>+2% s.d +3%</b>. Jual sore hari sebelum tutup jika belum tersentuh. Jangan di-hold menginap!
-</div>"""
-    elif taktik_trading == "🎯 ARA Hunter (High Momentum)":
-        guide_html = """<div style="background: rgba(245, 158, 11, 0.05); border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-💡 <b>Panduan Eksekusi - ARA Hunter (High Momentum):</b><br>
-• <b>Jam Eksekusi:</b> Buka pagi (09:01 - 09:15 WIB) atau konfirmasi siang (11:15 / 13:30 WIB).<br>
-• <b>Caranya:</b> Cari saham breakout MA5 dengan akumulasi kemarin & smart money masuk hari ini. Batasi pembelian jika harga sudah terbang >20%. Jika saham berhasil mengunci ARA (Auto Reject Atas) di akhir hari, simpan/hold untuk dijual besok pagi saat gap up.
-</div>"""
-    elif taktik_trading == "🟣 BSJP (Beli Sore Jual Pagi)":
-        guide_html = """<div style="background: rgba(168, 85, 247, 0.05); border-left: 4px solid #a855f7; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-💡 <b>Panduan Eksekusi - BSJP (Beli Sore Jual Pagi):</b><br>
-• <b>Jam Eksekusi:</b> <b>15:50 - 16:00 WIB</b> (Pre-closing / beberapa menit menjelang bursa tutup).<br>
-• <b>Caranya:</b> Beli saham bersinyal 🟣 <b>BSJP</b> di sore hari saat harga closing terbentuk. Simpan semalam, lalu langsung jual di keesokan paginya pukul <b>09:00 - 09:05 WIB</b> saat terjadi lonjakan pembukaan (gap up).
-</div>"""
-
-    if guide_html:
-        st.markdown(guide_html, unsafe_allow_html=True)
-
-    if beli_results:
-        st.markdown('<div class="section-header">🟢 Saham Rekomendasi (Siap Beli)</div>', unsafe_allow_html=True)
-        cols = st.columns(2)
-        for i, r in enumerate(beli_results):
-            with cols[i % 2]:
-                render_kartu_pemula(r, is_top=(i == 0))
-        st.markdown("---")
+    if is_owner:
+        alasan_pills = "".join([f'<span class="ind-pill">{a}</span>' for a in r["alasan"]])
     else:
-        st.info("⏳ Belum ada saham yang masuk kriteria beli saat ini. Pasar sedang lesu atau konsolidasi. Silakan perbarui data di sidebar beberapa saat lagi.")
-        st.markdown("---")
+        alasan_pills = f'<span class="ind-pill">🔒 Detail indikator disembunyikan</span>'
 
-    if other_results:
-        with st.expander(f"📋 Pantau Saham Lainnya — {len(other_results)} Saham (Belum Aman / Jual)"):
-            cols2 = st.columns(2)
-            for i, r in enumerate(other_results):
-                with cols2[i % 2]:
-                    render_kartu_pemula(r, is_top=False)
+    bsjp_check_html = ""
+    if r.get("bsjp_metrics"):
+        metrics = r["bsjp_metrics"]
+        items = []
+        for name, met in metrics.items():
+            color = "#22c55e" if met else "#ef4444"
+            icon = "✅" if met else "❌"
+            if is_owner:
+                display_name = name
+            else:
+                display_name = name.split(" (")[0].split(" >= ")[0].split(" <=")[0]
+            items.append(f'<span style="color:{color};font-size:0.75rem;margin-right:8px;white-space:nowrap;">{icon} {display_name}</span>')
+        bsjp_check_html = f'<div style="margin-top:8px;display:flex;flex-wrap:wrap;background:rgba(255,255,255,0.05);padding:8px;border-radius:10px;border:1px solid rgba(255,255,255,0.1)">{"".join(items)}</div>'
 
-    # Simplified summary table
-    st.markdown("---")
-    st.markdown("### 📋 Tabel Ringkasan Keputusan")
-    
-    rows = []
-    for r in results:
-        k = r["k"]
-        rows.append({
-            "Kode Saham":  r["symbol"],
-            "Harga":       f"Rp {r['harga']:,.0f}",
-            "Perubahan":   f"{'+' if r['chg']>=0 else ''}{r['chg']:.2f}%",
-            "Taktik Sinyal": r["sinyal"],
-            "Kekuatan":    f"{r['confidence']}% {r['conf_label']}",
-            "Rekomendasi Lot": r["lot"] if r["lot"] > 0 else "Modal Kurang",
-            "Harga Beli":  f"Rp {r['harga']:,.0f}",
-            "Target Jual": f"Rp {snap_fraksi(k['ht']):,}" if k else "-",
-            "Batas Rugi":  f"Rp {snap_fraksi(k['hsl']):,}" if k else "-"
-        })
+    kalkulasi_html = ""
+    if k:
+        kalkulasi_html = (
+            f'<div class="kalkulator">'
+            f'💼 <b>Lot:</b> {lot} lot &nbsp;|&nbsp; '
+            f'💰 <b>Modal:</b> Rp {k["modal"]:,.0f}<br>'
+            f'🎯 <b>Target:</b> Rp {snap_fraksi(k["ht"]):,} &nbsp;|&nbsp; '
+            f'🛑 <b>Stop Loss:</b> Rp {snap_fraksi(k["hsl"]):,}<br>'
+            f'✅ <b>Est. Profit:</b> <span style="color:#22c55e">Rp {k["profit"]:+,.0f}</span> &nbsp;|&nbsp; '
+            f'❌ <b>Est. Rugi:</b> <span style="color:#ef4444">Rp {k["rugi"]:+,.0f}</span>'
+            f'</div>'
+        )
 
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-    st.markdown(
-        f"<small style='color:#64748b'>⏱️ Pemindaian terakhir: {now_str} · "
-        f"Data IHSG delay harian yfinance ~15 menit · Berhasil menganalisis {len(results)}/{len(symbols)} saham</small>",
-        unsafe_allow_html=True
-    )
+    st.markdown(f"""
+    <div class="{css}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <span class="card-sym">{sym}</span>
+            <span class="{tag_css}">{tag_txt}</span>
+        </div>
+        <p class="card-price">Rp {harga:,.0f}</p>
+        <p style="font-size:0.88rem;color:{chg_col};margin:0 0 6px 0;font-weight:700">
+            {chg_sign}{chg:.2f}% hari ini
+        </p>
+        <div>
+            {pills_html}
+        </div>
+        <div style="margin-top:8px">{alasan_pills}</div>
+        {bsjp_check_html}
+        <div style="margin-top:8px;padding:10px;background:rgba(0,0,0,0.2);border-radius:10px;font-size:0.8rem;color:#cbd5e1">
+            <b style="color:{conf_color}">Confidence: {confidence}% — {conf_label}</b><br>
+            <span style="font-size:0.78rem">{analisis}</span>
+        </div>
+        {kalkulasi_html}
+    </div>
+    """, unsafe_allow_html=True)
 
-with tab_hist:
-    st.markdown("### 📜 Evaluasi Akurasi Sinyal")
-    
-    col_eval_btn, col_eval_status = st.columns([1, 3])
-    with col_eval_btn:
-        if st.button("🔄 Hitung Akurasi Sinyal", use_container_width=True):
-            with st.spinner("Mengevaluasi..."):
-                hist, changed = evaluate_history()
-                if changed > 0:
-                    st.success(f"Akurasi {changed} sinyal baru berhasil dihitung!")
-                else:
-                    st.info("Seluruh sinyal historis sudah dihitung.")
-                st.rerun()
+# ─────────────────────────────────────────────────────────────────────────────
+# TABS
+# ─────────────────────────────────────────────────────────────────────────────
+tab1, tab2 = st.tabs(["📊 Dashboard Real-Time", "📋 Signal History & Evaluasi"])
 
-    history = load_history()
-    
+with tab1:
+    beli_list = [r for r in filtered_results if r["sinyal"] in ("BELI","BSJP")]
+    jual_list = [r for r in filtered_results if r["sinyal"] == "JUAL"]
+    tung_list = [r for r in filtered_results if r["sinyal"] == "TUNGGU"]
+
+    if beli_list:
+        st.markdown('<div class="section-header">🟢 Sinyal BELI & 🟣 BSJP</div>', unsafe_allow_html=True)
+        cols = st.columns(min(len(beli_list), 3))
+        for i, r in enumerate(beli_list):
+            with cols[i % 3]:
+                # Live Price Override
+                override_key = f"override_{r['symbol']}_{tf_option}"
+                if override_key in st.session_state:
+                    override_price = st.session_state[override_key]
+                    if override_price != float(r['harga']):
+                        r['harga'] = override_price
+                        r['lot'] = hitung_lot(modal_per_saham, override_price)
+                        r['k'] = kalkulator(override_price, r['lot'], target_pct, sl_pct)
+                
+                render_kartu(r, taktik, is_owner)
+                
+                # Interactive Price Override Input
+                st.number_input(
+                    f"✏️ Sesuaikan Harga {r['symbol']}:",
+                    min_value=1.0,
+                    value=float(r['harga']),
+                    step=1.0,
+                    key=override_key
+                )
+                
+                with st.expander(f"📈 Chart TradingView {r['symbol']}"):
+                    components.html(tv_advanced_chart(r["symbol"], interval=tv_interval), height=410)
+                with st.expander(f"📊 Analisis Teknis {r['symbol']}"):
+                    components.html(tv_technical_analysis(r["symbol"], interval=tv_interval), height=390)
+
+    if jual_list:
+        st.markdown('<div class="section-header">🔴 Sinyal JUAL / Cut Loss</div>', unsafe_allow_html=True)
+        cols = st.columns(min(len(jual_list), 3))
+        for i, r in enumerate(jual_list):
+            with cols[i % 3]:
+                # Live Price Override
+                override_key = f"override_{r['symbol']}_{tf_option}"
+                if override_key in st.session_state:
+                    override_price = st.session_state[override_key]
+                    if override_price != float(r['harga']):
+                        r['harga'] = override_price
+                        r['lot'] = hitung_lot(modal_per_saham, override_price)
+                        r['k'] = kalkulator(override_price, r['lot'], target_pct, sl_pct)
+                
+                render_kartu(r, taktik, is_owner)
+                
+                st.number_input(
+                    f"✏️ Sesuaikan Harga {r['symbol']}:",
+                    min_value=1.0,
+                    value=float(r['harga']),
+                    step=1.0,
+                    key=override_key
+                )
+
+    if tung_list:
+        with st.expander(f"⏳ TUNGGU ({len(tung_list)} saham) — klik untuk lihat"):
+            cols = st.columns(3)
+            for i, r in enumerate(tung_list):
+                with cols[i % 3]:
+                    # Live Price Override
+                    override_key = f"override_{r['symbol']}_{tf_option}"
+                    if override_key in st.session_state:
+                        override_price = st.session_state[override_key]
+                        if override_price != float(r['harga']):
+                            r['harga'] = override_price
+                            r['lot'] = hitung_lot(modal_per_saham, override_price)
+                            r['k'] = kalkulator(override_price, r['lot'], target_pct, sl_pct)
+                    
+                    render_kartu(r, taktik, is_owner)
+                    
+                    st.number_input(
+                        f"✏️ Sesuaikan Harga {r['symbol']}:",
+                        min_value=1.0,
+                        value=float(r['harga']),
+                        step=1.0,
+                        key=override_key
+                    )
+
+with tab2:
+    st.markdown("### 📋 Riwayat Sinyal & Evaluasi Akurasi")
+    with st.spinner("Mengevaluasi riwayat sinyal..."):
+        history, changed = evaluate_history()
+    if changed:
+        st.success(f"✅ {changed} sinyal berhasil dievaluasi!")
     if not history:
-        st.info("Belum ada riwayat sinyal tersimpan. Sistem akan mencatat sinyal secara otomatis setelah Anda melakukan pemindaian.")
+        st.info("Belum ada riwayat sinyal. Riwayat akan tersimpan otomatis saat sinyal BELI/BSJP/JUAL muncul.")
     else:
-        buy_signals = [h for h in history if h["sinyal"] in ("BELI", "BSJP")]
-        eval_buys = [h for h in buy_signals if h.get("outcome") is not None]
-        
-        if eval_buys:
-            wins = sum(1 for h in eval_buys if "✅" in h["outcome"] or "PROFIT" in h["outcome"])
-            win_rate = (wins / len(eval_buys)) * 100
-            returns = [h["return_pct"] for h in eval_buys if h["return_pct"] is not None]
-            avg_return = sum(returns) / len(returns) if returns else 0.0
-            total_profit = sum(h["est_profit_rp"] for h in eval_buys if h.get("est_profit_rp") is not None)
-            
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("📊 Total Sinyal", len(history))
-            c2.metric("🎯 Win Rate (BELI)", f"{win_rate:.1f}%", f"{wins}/{len(eval_buys)} Saham")
-            c3.metric("📈 Rata-rata Return", f"{avg_return:+.2f}%")
-            
-            prof_color = "normal" if total_profit >= 0 else "inverse"
-            c4.metric("💰 Estimasi Keuntungan Realisasi", 
-                      f"Rp {total_profit:,.0f}" if total_profit >= 0 else f"-Rp {abs(total_profit):,.0f}",
-                      delta_color=prof_color)
-        else:
-            c1, c2, c3 = st.columns(3)
-            c1.metric("📊 Total Sinyal", len(history))
-            c2.metric("🎯 Win Rate (BELI)", "0.0%", "0/0 Saham")
-            c3.metric("📈 Rata-rata Return", "0.00%")
-            st.warning("⚠️ Metrik akurasi belum muncul karena seluruh sinyal di bawah masih berjalan (running) dan belum ditutup di hari berikutnya.")
-            
-        st.markdown("---")
-        
-        # Friendly Narrative Outcomes - Always Visible
-        st.markdown("#### 📝 Rapor Kinerja Sinyal Terbaru")
-        sorted_history = sorted(history, key=lambda x: x["scan_time"], reverse=True)
-        for entry in sorted_history[:5]:
-            st.info(generate_outcome_narrative(entry))
-        st.markdown("---")
-            
         df_hist = pd.DataFrame(history)
-        df_display = df_hist.sort_values(by="scan_time", ascending=False)
-        
-        show_cols = ["scan_time", "symbol", "sinyal", "harga_signal", "confidence", "target_harga", "sl_harga", "harga_close", "return_pct", "outcome"]
-        show_cols = [c for c in show_cols if c in df_display.columns]
-        df_display = df_display[show_cols]
-        
-        df_display.columns = [
-            "Waktu Scan", "Kode", "Sinyal", "Harga Masuk", "Kekuatan", "Target TP", "Batas SL", "Harga Close", "Return %", "Hasil Evaluasi"
-        ]
-        
-        st.dataframe(df_display, use_container_width=True, hide_index=True)
+        df_hist = df_hist.sort_values("scan_date", ascending=False)
+        cols_show = ["scan_date","scan_time","symbol","sinyal","harga_signal",
+                     "confidence","conf_label","target_harga","sl_harga",
+                     "harga_close","return_pct","outcome","est_profit_rp"]
+        cols_show = [c for c in cols_show if c in df_hist.columns]
+        st.dataframe(df_hist[cols_show], use_container_width=True)
+
+        done = df_hist[df_hist["outcome"].notna()]
+        if not done.empty:
+            st.markdown("### 📊 Statistik Akurasi")
+            c1,c2,c3,c4 = st.columns(4)
+            total = len(done)
+            hit   = len(done[done["outcome"].str.contains("TARGET|PROFIT|TURUN", na=False)])
+            winrate = hit/total*100 if total else 0
+            avg_ret = done["return_pct"].mean() if "return_pct" in done.columns else 0
+            tot_pnl = done["est_profit_rp"].sum() if "est_profit_rp" in done.columns else 0
+            c1.metric("Total Sinyal", total)
+            c2.metric("Win Rate", f"{winrate:.1f}%")
+            c3.metric("Avg Return", f"{avg_ret:+.2f}%")
+            c4.metric("Est. Total P&L", f"Rp {tot_pnl:+,.0f}")
