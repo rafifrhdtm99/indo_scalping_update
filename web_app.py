@@ -745,12 +745,13 @@ strategi = st.sidebar.radio(
         "🟢 BPJS Sesi 1 (Pagi)",
         "🟡 BPJS Sesi 2 (Siang)",
         "🟣 BSJP (Beli Sore)",
-        "🔥 ARA Hunter",
-        "Swing & Scalping Klasik",
-        "⚡ BPJS Agresif (Custom +2%)"
+        "🔥 ARA Hunter"
     ],
     index=2  # Default: BSJP
 )
+
+# 📋 Jumlah Saham (Max 505 sesuai total ALL_SAHAM)
+max_sahams = st.sidebar.slider("📋 Jumlah Saham", 5, 505, 50)
 
 # Info Box Strategi (Clean & Simple)
 if strategi == "🟢 BPJS Sesi 1 (Pagi)":
@@ -761,15 +762,14 @@ elif strategi == "🟣 BSJP (Beli Sore)":
     st.sidebar.info("💡 **BSJP**: Skrining sore hari menjelang tutup bursa untuk menangkap saham yang diakumulasi dan berpotensi naik besok pagi.")
 elif strategi == "🔥 ARA Hunter":
     st.sidebar.info("💡 **ARA Hunter**: Skrining saham ber-volume masif yang sedang menuju/berpotensi mengunci kenaikan tertinggi (ARA).")
-elif strategi == "Swing & Scalping Klasik":
-    st.sidebar.info("💡 **Swing & Scalping Klasik**: Skrining dengan kombinasi indikator tren dan momentum seimbang, cocok untuk pemula dan swing trading jangka pendek.")
-elif strategi == "⚡ BPJS Agresif (Custom +2%)":
-    st.sidebar.info("💡 **BPJS Agresif**: Skrining saham momentum tinggi dengan minimal kenaikan hari ini +2% untuk trading kilat (scalping agresif).")
 
 # 🔍 Filter & Sortir
 st.sidebar.markdown("### 🔍 Filter & Sortir")
 filter_sinyal = st.sidebar.checkbox("Hanya Sinyal BELI / BSJP", value=False)
-min_confidence = st.sidebar.slider("🔥 Min. Confidence (%)", 10, 100, 30)
+
+# Hardcode min_confidence to 75%
+min_confidence = 75
+
 urut_opsi = st.sidebar.selectbox("Urutkan Berdasarkan:", [
     "Sinyal Teratas (Default)",
     "Confidence tertinggi",
@@ -778,57 +778,20 @@ urut_opsi = st.sidebar.selectbox("Urutkan Berdasarkan:", [
     "Volume transaksi"
 ], index=0)
 
-# 📋 Jumlah Saham (Max 505 sesuai total ALL_SAHAM)
-max_sahams = st.sidebar.slider("📋 Jumlah Saham", 5, 505, 50)
+# Otomatisasi Lilin & Grafik (Timeframe Target & TradingView)
+if strategi in ("🟢 BPJS Sesi 1 (Pagi)", "🟡 BPJS Sesi 2 (Siang)"):
+    tf_option = "15m"
+    tf_config = {"period": "5d", "interval": "15m"}
+    tv_interval = "15"
+else:  # "🟣 BSJP (Beli Sore)" atau "🔥 ARA Hunter"
+    tf_option = "1d"
+    tf_config = {"period": "6mo", "interval": "1d"}
+    tv_interval = "1D"
 
-# ⏱️ Expander Timeframe (Lanjutan)
-with st.sidebar.expander("⏱️ Pengaturan Lilin & Grafik (Lanjutan)", expanded=False):
-    st.markdown("""
-    * **Timeframe Analisis (Target):** Menentukan periode grafik lilin untuk perhitungan sinyal teknis.
-    * **Timeframe TradingView:** Menentukan interval lilin default pada grafik interaktif kartu saham.
-    """)
-    tf_display = st.selectbox(
-        "⏱️ Timeframe Analisis (Target):",
-        [
-            "⏱️ Harian - 1 Hari (Rekomendasi BSJP & ARA Hunter)",
-            "⏱️ Menengah - 1 Jam (Rekomendasi Swing & Scalping Klasik)",
-            "⏱️ Scalping - 15 Menit (Rekomendasi Utama BPJS Sesi 1 & 2)",
-            "⏱️ Scalping Cepat - 5 Menit (Scalping Sangat Agresif)"
-        ],
-        index=0
-    )
-    
-    tf_mapping = {
-        "⏱️ Harian - 1 Hari (Rekomendasi BSJP & ARA Hunter)": "1d",
-        "⏱️ Menengah - 1 Jam (Rekomendasi Swing & Scalping Klasik)": "1h",
-        "⏱️ Scalping - 15 Menit (Rekomendasi Utama BPJS Sesi 1 & 2)": "15m",
-        "⏱️ Scalping Cepat - 5 Menit (Scalping Sangat Agresif)": "5m"
-    }
-    tf_option = tf_mapping[tf_display]
-    
-    tf_config_mapping = {
-        "5m":  {"period": "2d",  "interval": "5m"},
-        "15m": {"period": "5d",  "interval": "15m"},
-        "1h":  {"period": "1mo", "interval": "1h"},
-        "1d":  {"period": "6mo", "interval": "1d"}
-    }
-    tf_config = tf_config_mapping[tf_option]
-    
-    tv_interval = st.select_slider(
-        "📈 Timeframe TradingView:",
-        options=["1", "5", "15", "30", "60", "1D", "1W"],
-        value="1D"
-    )
-
-# 💰 Expander Keuangan (Money Management)
-with st.sidebar.expander("💰 Pengaturan Keuangan", expanded=False):
-    modal_per_saham = st.number_input(
-        "💰 Modal per Saham (Rp):",
-        min_value=100_000, max_value=20_000_000,
-        value=500_000, step=50_000, format="%d"
-    )
-    target_pct = st.slider("🎯 Target Profit (%)", 2.0, 20.0, 5.0, 0.5)
-    sl_pct     = st.slider("🛑 Stop Loss (%)",   1.0, 10.0, 3.0, 0.5)
+# Parameter Keuangan Tetap (Hardcoded)
+modal_per_saham = 500_000
+target_pct = 5.0
+sl_pct = 3.0
 
 # 🔑 Kode Akses Parameter (Private - Paling bawah)
 st.sidebar.markdown("---")
