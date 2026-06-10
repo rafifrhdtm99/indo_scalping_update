@@ -1056,6 +1056,23 @@ def render_kartu(r, strategi="🟣 BSJP (Beli Sore)", is_owner=False):
 tab1, tab2 = st.tabs(["📊 Dashboard Real-Time", "📋 Signal History & Evaluasi"])
 
 with tab1:
+    # Radar Saham Potensial (owner only)
+    if is_owner:
+        hampir_list = [r for r in results if r["sinyal"] not in ("BELI", "BSJP") and r["confidence"] >= 50]
+        hampir_list.sort(key=lambda x: x["confidence"], reverse=True)
+        if hampir_list:
+            with st.expander("🎯 Radar Saham Potensial (Hampir Sinyal — owner only)", expanded=True):
+                st.markdown("Berikut adalah saham-saham yang mendekati kriteria sinyal masuk hari ini:")
+                for r in hampir_list[:5]:
+                    unmet = [k.split(" (")[0] for k, v in r["bsjp_metrics"].items() if not v]
+                    unmet_str = ", ".join([f"<span style='color:#ef4444;font-weight:bold;'>{u}</span>" for u in unmet])
+                    st.markdown(
+                        f"• **{r['symbol']}** (Rp {r['harga']:,.0f} | {r['chg']:+.2f}%) — "
+                        f"Confidence: **{r['confidence']}%** | Kriteria Kurang: {unmet_str}",
+                        unsafe_allow_html=True
+                    )
+                st.markdown("---")
+
     beli_list = [r for r in filtered_results if r["sinyal"] in ("BELI","BSJP")]
     jual_list = [r for r in filtered_results if r["sinyal"] == "JUAL"]
     tung_list = [r for r in filtered_results if r["sinyal"] == "TUNGGU"]
