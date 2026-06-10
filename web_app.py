@@ -570,6 +570,7 @@ def tentukan_sinyal(ind, harga, prev, sesi_status, strategi="🟣 BSJP (Beli Sor
     rsi    = ind.get("RSI", 50)
     ema9   = ind.get("EMA9", harga)
     ema21  = ind.get("EMA21", harga)
+    ema50  = ind.get("EMA50", harga)
     mh     = ind.get("MACD_hist", 0)
     vol    = ind.get("volume", 0)
     volma  = ind.get("vol_ma20", vol or 1)
@@ -670,41 +671,22 @@ def tentukan_sinyal(ind, harga, prev, sesi_status, strategi="🟣 BSJP (Beli Sor
         }
         alasan = [k for k, v in metrics.items() if v]
 
-    elif strategi == "Swing & Scalping Klasik":
-        c_rsi         = 30 <= rsi <= 65
-        c_trend       = ema9 > ema21
-        c_macd        = mh > 0
+    elif strategi == "🔵 Swing Trading (Pullback)":
+        c_trend_long  = harga > ema50
+        c_rsi_pull    = 30 <= rsi <= 50
+        c_macd_pos    = mh > 0
+        c_trend_med   = ma20 >= ma50
         c_value       = val_today >= 5_000_000_000
-        c_vol_spike   = vol >= 1.0 * volma
-        c_chg         = chg > 0.0
+        c_vol_stable  = volma >= 500_000
         
-        signal_ok = c_rsi and c_trend and c_macd and c_value and c_vol_spike and c_chg
+        signal_ok = c_trend_long and c_rsi_pull and c_macd_pos and c_trend_med and c_value and c_vol_stable
         metrics = {
-            "RSI Sehat (30-65)": c_rsi,
-            "Tren Bullish (EMA9>EMA21)": c_trend,
-            "MACD Histogram > 0": c_macd,
-            "Nilai Transaksi Hari Ini (>=5M)": c_value,
-            "Volume Harian (>=1.0x MA20)": c_vol_spike,
-            "Kenaikan Positif (>0%)": c_chg
-        }
-        alasan = [k for k, v in metrics.items() if v]
-
-    elif strategi == "⚡ BPJS Agresif (Custom +2%)":
-        c_chg         = 2.0 <= chg <= 15.0
-        c_rsi         = 40 <= rsi <= 70
-        c_trend       = ema9 > ema21
-        c_macd        = mh > 0
-        c_value       = val_today >= 10_000_000_000
-        c_vol_spike   = vol >= 1.3 * volma
-        
-        signal_ok = c_chg and c_rsi and c_trend and c_macd and c_value and c_vol_spike
-        metrics = {
-            "Kenaikan Agresif (2%-15%)": c_chg,
-            "RSI Kuat (40-70)": c_rsi,
-            "Tren Bullish (EMA9>EMA21)": c_trend,
-            "MACD Histogram > 0": c_macd,
-            "Nilai Transaksi Hari Ini (>=10M)": c_value,
-            "Lonjakan Volume (>=1.3x MA20)": c_vol_spike
+            "Tren Bullish (Close > EMA50)": c_trend_long,
+            "Pullback RSI (30-50)": c_rsi_pull,
+            "MACD Histogram > 0": c_macd_pos,
+            "Tren Menengah (MA20 >= MA50)": c_trend_med,
+            "Nilai Transaksi (>=5M)": c_value,
+            "Volume Rata-rata (>=500K)": c_vol_stable
         }
         alasan = [k for k, v in metrics.items() if v]
 
@@ -745,7 +727,8 @@ strategi = st.sidebar.radio(
         "🟢 BPJS Sesi 1 (Pagi)",
         "🟡 BPJS Sesi 2 (Siang)",
         "🟣 BSJP (Beli Sore)",
-        "🔥 ARA Hunter"
+        "🔥 ARA Hunter",
+        "🔵 Swing Trading (Pullback)"
     ],
     index=2  # Default: BSJP
 )
@@ -762,6 +745,8 @@ elif strategi == "🟣 BSJP (Beli Sore)":
     st.sidebar.info("💡 **BSJP**: Skrining sore hari menjelang tutup bursa untuk menangkap saham yang diakumulasi dan berpotensi naik besok pagi.")
 elif strategi == "🔥 ARA Hunter":
     st.sidebar.info("💡 **ARA Hunter**: Skrining saham ber-volume masif yang sedang menuju/berpotensi mengunci kenaikan tertinggi (ARA).")
+elif strategi == "🔵 Swing Trading (Pullback)":
+    st.sidebar.info("💡 **Swing Trading**: Skrining saham tren naik (uptrend) yang sedang mengalami koreksi sehat (pullback) mendekati area support.")
 
 # 🔍 Filter & Sortir
 st.sidebar.markdown("### 🔍 Filter & Sortir")
@@ -770,23 +755,32 @@ filter_sinyal = st.sidebar.checkbox("Hanya Sinyal BELI / BSJP", value=False)
 # Hardcode min_confidence to 75%
 min_confidence = 75
 
-urut_opsi = st.sidebar.selectbox("Urutkan Berdasarkan:", [
-    "Sinyal Teratas (Default)",
-    "Confidence tertinggi",
-    "% Change terbesar",
-    "RSI terendah (Oversold)",
-    "Volume transaksi"
-], index=0)
-
-# Otomatisasi Lilin & Grafik (Timeframe Target & TradingView)
-if strategi in ("🟢 BPJS Sesi 1 (Pagi)", "🟡 BPJS Sesi 2 (Siang)"):
+# Otomatisasi Lilin, Grafik, dan Urutan Tampilan (Sorting)
+if strategi == "🟢 BPJS Sesi 1 (Pagi)":
     tf_option = "15m"
     tf_config = {"period": "5d", "interval": "15m"}
     tv_interval = "15"
-else:  # "🟣 BSJP (Beli Sore)" atau "🔥 ARA Hunter"
+    urut_opsi = "% Change terbesar"
+elif strategi == "🟡 BPJS Sesi 2 (Siang)":
+    tf_option = "15m"
+    tf_config = {"period": "5d", "interval": "15m"}
+    tv_interval = "15"
+    urut_opsi = "% Change terbesar"
+elif strategi == "🟣 BSJP (Beli Sore)":
     tf_option = "1d"
     tf_config = {"period": "6mo", "interval": "1d"}
     tv_interval = "1D"
+    urut_opsi = "Confidence tertinggi"
+elif strategi == "🔥 ARA Hunter":
+    tf_option = "1d"
+    tf_config = {"period": "6mo", "interval": "1d"}
+    tv_interval = "1D"
+    urut_opsi = "% Change terbesar"
+elif strategi == "🔵 Swing Trading (Pullback)":
+    tf_option = "1d"
+    tf_config = {"period": "6mo", "interval": "1d"}
+    tv_interval = "1D"
+    urut_opsi = "RSI terendah (Oversold)"
 
 # Parameter Keuangan Tetap (Hardcoded)
 modal_per_saham = 500_000
