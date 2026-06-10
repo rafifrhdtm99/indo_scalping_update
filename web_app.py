@@ -479,7 +479,7 @@ def buat_analisis_singkat(ind, harga, sinyal, chg, bsjp_metrics=None, strategi="
             unmet_list = [k for k, v in bsjp_metrics.items() if not v]
             if sinyal in ("BELI", "BSJP"):
                 return (
-                    f"🌟 Saham memenuhi **seluruh kriteria {strategi}**! Kenaikan {chg:.1f}% sehat, "
+                    f"🌟 Saham memenuhi <b>seluruh kriteria {strategi}</b>! Kenaikan {chg:.1f}% sehat, "
                     f"kriteria terpenuhi: {', '.join(met_list)}."
                 )
             else:
@@ -492,9 +492,9 @@ def buat_analisis_singkat(ind, harga, sinyal, chg, bsjp_metrics=None, strategi="
         else:
             # Mode Privat (Public View) - Sembunyikan detail nama kriteria
             if sinyal in ("BELI", "BSJP"):
-                return f"🌟 Saham memenuhi **seluruh kriteria analisis** ({met_criteria}/{total_criteria}) untuk strategi yang dipilih. Rekomendasi masuk aktif."
+                return f"🌟 Saham memenuhi <b>seluruh kriteria analisis</b> ({met_criteria}/{total_criteria}) untuk strategi yang dipilih. Rekomendasi masuk aktif."
             else:
-                return f"⏳ Saham memenuhi **{met_criteria} dari {total_criteria} kriteria** rahasia strategi ini. Menunggu konfirmasi penuh."
+                return f"⏳ Saham memenuhi <b>{met_criteria} dari {total_criteria} kriteria</b> rahasia strategi ini. Menunggu konfirmasi penuh."
     return "Sedang memproses analisis..."
 
 def hitung_lot(modal, harga):
