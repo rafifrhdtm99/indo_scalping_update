@@ -7,8 +7,6 @@ import json
 import os
 from datetime import datetime, timedelta
 import pytz
-import urllib.request
-import urllib.parse
 
 # ─────────────────────────────────────────────────────────────────────────────
 # KONFIGURASI
@@ -24,12 +22,6 @@ WIB          = pytz.timezone("Asia/Jakarta")
 FEE_BELI     = 0.0010
 FEE_JUAL     = 0.0020
 HISTORY_FILE = os.path.join(os.path.dirname(__file__), "signal_history.json")
-ALERTS_FILE  = os.path.join(os.path.dirname(__file__), "telegram_alerts.json")
-
-# Telegram Bot configuration (Hardcoded & Hidden from UI)
-TG_TOKEN     = "8989322838:AAHdCXYAM-jR3NYX2Y3kt5hmqpMm3UINBMo"
-TG_CHAT_ID   = "6905606117"
-ENABLE_TG    = True
 
 # ── ALL_SAHAM — Watchlist Gabungan Emiten IHSG (505 Saham) ────────────────────
 ALL_SAHAM = [
@@ -260,9 +252,9 @@ def get_status_pasar():
 
 def snap_fraksi(h):
     if h < 200:    return round(h)
-    elif h < 500:  return round(h/2)*2
-    elif h < 2000: return round(h/5)*5
-    elif h < 5000: return round(h/25)*25
+    elif h < 500:  return min(round(h/2)*2, 498)
+    elif h < 2000: return min(round(h/5)*5, 1995)
+    elif h < 5000: return min(round(h/25)*25, 4975)
     else:          return round(h/50)*50
 
 def get_ara_limit(price):
@@ -277,7 +269,7 @@ def get_ara_limit(price):
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SIGNAL HISTORY — Simpan, Load, Evaluasi
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────��─────────────���─────────────────────────────────
 def load_history():
     if not os.path.exists(HISTORY_FILE):
         return []
@@ -363,17 +355,17 @@ def evaluate_history():
             entry["harga_close"] = round(close_price, 0)
             entry["return_pct"]  = round(ret, 2)
             if entry["sinyal"] in ("BELI", "BSJP"):
-                if r := entry["return_pct"]:
-                    if r >= entry["target_pct"]:
-                        outcome = "HIT_TARGET ✅"
-                    elif r <= -entry["sl_pct"]:
-                        outcome = "HIT_SL ❌"
-                    elif r > 0:
-                        outcome = "PROFIT 🟡"
-                    else:
-                        outcome = "LOSS 🔴"
-                else:
+                ret_val = entry["return_pct"]
+                if ret_val is None:
                     continue
+                if ret_val >= entry["target_pct"]:
+                    outcome = "HIT_TARGET ✅"
+                elif ret_val <= -entry["sl_pct"]:
+                    outcome = "HIT_SL ❌"
+                elif ret_val > 0:
+                    outcome = "PROFIT 🟡"
+                else:
+                    outcome = "LOSS 🔴"
             else:
                 outcome = "TURUN ✅" if ret < 0 else "NAIK ❌"
             entry["outcome"]       = outcome
@@ -384,69 +376,6 @@ def evaluate_history():
     if changed:
         save_history(history)
     return history, changed
-
-# ─────────────────────────────────────────────────────────────────────────────
-# TELEGRAM BOT LOGIC
-# ─────────────────────────────────────────────────────────────────────────────
-def load_sent_alerts():
-    if not os.path.exists(ALERTS_FILE):
-        return {}
-    try:
-        with open(ALERTS_FILE, "r") as f:
-            return json.load(f)
-    except:
-        return {}
-
-def save_sent_alerts(alerts):
-    try:
-        with open(ALERTS_FILE, "w") as f:
-            json.dump(alerts, f)
-    except:
-        pass
-
-def send_telegram_alert(token, chat_id, r, tf, target_pct, sl_pct):
-    sym = r["symbol"]
-    sinyal = r["sinyal"]
-    harga = r["harga"]
-    lot = r["lot"]
-    k = r["k"]
-    confidence = r["confidence"]
-    conf_label = r["conf_label"]
-    
-    sig_emoji = "🟢" if sinyal == "BELI" else "🟣"
-    sig_name = "BELI (BPJS)" if sinyal == "BELI" else ("BELI SORE (BSJP V1)" if r.get("bsjp_metrics") else "BELI SORE (BSJP)")
-    
-    target_price = snap_fraksi(k["ht"]) if k else harga
-    sl_price = snap_fraksi(k["hsl"]) if k else harga
-    modal = k["modal"] if k else 0
-    profit = k["profit"] if k else 0
-    rugi = k["rugi"] if k else 0
-    
-    msg = (
-        f"<b>{sig_emoji} SIGNAL ALERT: {sym}</b>\n"
-        f"───────────────────\n"
-        f"🎯 <b>Sinyal:</b> {sig_name}\n"
-        f"⏱️ <b>Timeframe:</b> {tf}\n"
-        f"💵 <b>Harga Masuk:</b> Rp {harga:,.0f}\n"
-        f"💼 <b>Rekomendasi Lot:</b> {lot} lot\n"
-        f"💰 <b>Estimasi Modal:</b> Rp {modal:,.0f}\n"
-        f"📊 <b>Confidence:</b> {confidence}% ({conf_label})\n\n"
-        f"🎯 <b>Target Jual:</b> Rp {target_price:,.0f} (+{target_pct:.1f}%)\n"
-        f"🛑 <b>Stop Loss:</b> Rp {sl_price:,.0f} (-{sl_pct:.1f}%)\n"
-        f"✅ <b>Est. Profit:</b> Rp {profit:+,.0f}\n"
-        f"❌ <b>Est. Rugi:</b> Rp {rugi:+,.0f}\n"
-        f"───────────────────\n"
-        f"<i>Jam Scan: {datetime.now(WIB).strftime('%d/%m/%Y %H:%M:%S')} WIB</i>"
-    )
-    
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    data = urllib.parse.urlencode({"chat_id": chat_id, "text": msg, "parse_mode": "HTML"}).encode("utf-8")
-    try:
-        req = urllib.request.Request(url, data=data)
-        with urllib.request.urlopen(req, timeout=5) as response:
-            return True
-    except Exception as e:
-        return False
 
 # ─────────────────────────────────────────────────────────────────────────────
 # FUNGSI ANALISIS & SINYAL
@@ -704,7 +633,7 @@ def tentukan_sinyal(ind, harga, prev, sesi_status, strategi="🟣 BSJP (Beli Sor
     if mh < 0: js += 1
     if harga < ema21: js += 1
     
-    if js >= 3:
+    if js >= 3 and rsi >= 45:
         return "JUAL", ["Tren Melemah / Jenuh Beli ⚠️"], metrics
         
     return "TUNGGU", ["Menunggu Konfirmasi Momentum"], metrics
@@ -819,7 +748,7 @@ st.markdown("""
 
 # ─────────────────────────────────────────────────────────────────────────────
 # AMBIL DAFTAR SAHAM
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────��───────────────────────────────────────────────────────
 with st.spinner("📡 Menyiapkan daftar saham..."):
     symbols = ALL_SAHAM[:max_sahams]
 
@@ -884,26 +813,6 @@ new_signals = record_signals(results, modal_per_saham, target_pct, sl_pct)
 if new_signals > 0:
     st.toast(f"✅ {new_signals} sinyal baru disimpan ke Signal History!", icon="📌")
 
-if ENABLE_TG and TG_TOKEN and TG_CHAT_ID:
-    sent_alerts = load_sent_alerts()
-    today_str = datetime.now(WIB).strftime("%Y-%m-%d")
-    alerts_sent_count = 0
-    
-    for r in results:
-        if r["sinyal"] in ("BELI", "BSJP"):
-            if r["confidence"] < min_confidence:
-                continue
-            # Alert key unik per saham, timeframe, dan tipe sinyal harian
-            alert_key = f"{today_str}_{r['symbol']}_{tf_option}_{r['sinyal']}"
-            if alert_key not in sent_alerts:
-                success = send_telegram_alert(TG_TOKEN, TG_CHAT_ID, r, tf_option, target_pct, sl_pct)
-                if success:
-                    sent_alerts[alert_key] = True
-                    alerts_sent_count += 1
-                    
-    if alerts_sent_count > 0:
-        save_sent_alerts(sent_alerts)
-        st.toast(f"🔔 {alerts_sent_count} alert baru dikirim ke Telegram!", icon="💬")
 
 # Apply Sorting and UI Filtering
 filtered_results = []

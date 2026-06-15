@@ -249,9 +249,9 @@ def get_status_pasar():
 
 def snap_fraksi(h):
     if h < 200:    return round(h)
-    elif h < 500:  return round(h/2)*2
-    elif h < 2000: return round(h/5)*5
-    elif h < 5000: return round(h/25)*25
+    elif h < 500:  return min(round(h/2)*2, 498)
+    elif h < 2000: return min(round(h/5)*5, 1995)
+    elif h < 5000: return min(round(h/25)*25, 4975)
     else:          return round(h/50)*50
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -342,6 +342,8 @@ def evaluate_history():
             entry["harga_close"] = round(close_price, 0)
             entry["return_pct"]  = round(ret, 2)
             if entry["sinyal"] in ("BELI", "BSJP"):
+                if ret is None:
+                    continue
                 if ret >= entry["target_pct"]:
                     outcome = "HIT_TARGET ✅"
                 elif ret <= -entry["sl_pct"]:
@@ -557,7 +559,7 @@ def tentukan_sinyal(ind, harga, sesi_status):
     now = datetime.now(WIB)
     h2, m2 = now.hour, now.minute
     bsjp_ok = (14,30)<=(h2,m2)<=(15,50) and sesi_status=="buka" and bs>=4 and rsi<58 and mh>0
-    if js >= 3:    return "JUAL",   alasan
+    if js >= 3 and rsi >= 45:    return "JUAL",   alasan
     if bsjp_ok:    return "BSJP",   alasan
     if bs >= 3:    return "BELI",   alasan
     return "TUNGGU", alasan

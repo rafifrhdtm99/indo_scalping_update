@@ -3,7 +3,7 @@ import pandas as pd
 import ta
 import json
 import os
-import requests
+import urllib.request
 from datetime import datetime
 import pytz
 import sys
@@ -15,9 +15,6 @@ if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8")
 
 # Constants
-GOAPI_KEY     = "f6da6e9d-87b7-5276-00ca-39652df1"
-GOAPI_HEADERS = {"X-API-Key": GOAPI_KEY}
-BASE_URL      = "https://api.goapi.io"
 WIB           = pytz.timezone("Asia/Jakarta")
 FEE_BELI      = 0.0010
 FEE_JUAL      = 0.0020
@@ -55,9 +52,9 @@ LQ45_POPULER = [
 
 def snap_fraksi(h):
     if h < 200:    return round(h)
-    elif h < 500:  return round(h/2)*2
-    elif h < 2000: return round(h/5)*5
-    elif h < 5000: return round(h/25)*25
+    elif h < 500:  return min(round(h/2)*2, 498)
+    elif h < 2000: return min(round(h/5)*5, 1995)
+    elif h < 5000: return min(round(h/25)*25, 4975)
     else:          return round(h/50)*50
 
 def load_history():
@@ -74,21 +71,6 @@ def save_history(history):
         with open(HISTORY_FILE, "w", encoding="utf-8") as f:
             json.dump(history, f, ensure_ascii=False, indent=2)
         return True
-    except:
-        return False
-
-def send_telegram_alert(message):
-    token = "8520698282:AAF40Cj54M8xX4sPkILJKT-VTBQ43aJ6VdU"
-    chat_id = "6905606117"
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": message,
-        "parse_mode": "Markdown"
-    }
-    try:
-        response = requests.post(url, json=payload, timeout=10)
-        return response.status_code == 200
     except:
         return False
 
@@ -132,34 +114,6 @@ def record_signals(results, modal_per_saham, target_pct, sl_pct, current_taktik)
         history.append(entry)
         existing_keys.add(key)
         new_count += 1
-
-        # Kirim Alert Telegram jika kekuatan sinyal >= 60% (Noise Filtering)
-        if r.get("confidence", 0) >= 60:
-            try:
-                target_tp = snap_fraksi(k["ht"]) if k else 0
-                sl_val = snap_fraksi(k["hsl"]) if k else 0
-                modal_val = round(k["modal"]) if k else 0
-                import urllib.parse
-                taktik_encoded = urllib.parse.quote(current_taktik)
-                emoji = "🟢" if r["sinyal"] == "BELI" else "🟣" if r["sinyal"] == "BSJP" else "🔴"
-                web_link = f"https://indo-scalping.streamlit.app/?saham={r['symbol']}&taktik={taktik_encoded}"
-                
-                msg = (
-                    f"🚨 *{emoji} SINYAL TRADING BARU TERDETEKSI!* *{r['symbol']}*\n\n"
-                    f"• *Aset/Kode:* {r['symbol']}\n"
-                    f"• *Taktik:* {current_taktik}\n"
-                    f"• *Sinyal:* {r['sinyal']}\n"
-                    f"• *Harga Masuk:* Rp {r['harga']:,.0f}\n"
-                    f"• *Kekuatan Sinyal:* {r['confidence']}% ({r['conf_label']})\n"
-                    f"• *Target TP:* Rp {target_tp:,.0f} (+{target_pct}%)\n"
-                    f"• *Batas SL:* Rp {sl_val:,.0f} (-{sl_pct}%)\n"
-                    f"• *Rekomendasi:* Beli {r['lot']} lot (Modal: Rp {modal_val:,.0f})\n\n"
-                    f"🔍 [Buka Web App & Analisa Detail]({web_link})\n\n"
-                    f"_Waktu Scan: {scan_time} WIB_"
-                )
-                send_telegram_alert(msg)
-            except Exception as e:
-                print(f"Error sending telegram for {r['symbol']}: {e}")
 
     save_history(history)
     return new_count
@@ -484,7 +438,7 @@ def main():
                 sinyal, alasan = tentukan_sinyal_classic(ind, harga)
                 confidence, conf_label, conf_color = hitung_confidence_classic(ind, harga, sinyal)
                 
-            lot = hitung_lot(1_000_000, harga)
+            lot = hitung_lot(500_000, harga)
             k = kalkulator(harga, lot, 5.0, 3.0)
             
             results.append({
@@ -494,7 +448,7 @@ def main():
                 "conf_label": conf_label, "conf_color": conf_color
             })
             
-        new_count = record_signals(results, 1_000_000, 5.0, 3.0, tactic)
+        new_count = record_signals(results, 500_000, 5.0, 3.0, tactic)
         total_new += new_count
         print(f"Taktik '{tactic}': {new_count} sinyal baru dicatat.")
         
