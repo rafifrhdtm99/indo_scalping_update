@@ -23,6 +23,24 @@ FEE_BELI     = 0.0010
 FEE_JUAL     = 0.0020
 HISTORY_FILE = os.path.join(os.path.dirname(__file__), "signal_history.json")
 
+# ── LQ45 & Big Cap — Saham paling likuid, prioritaskan di scan ──
+LQ45_PRIORITY = [
+    "BBCA", "BBRI", "BMRI", "BBNI", "BBTN",   # Perbankan Big4
+    "TLKM", "ASII", "GOTO", "BREN", "AMMN",   # Teknologi & Energi
+    "UNVR", "ICBP", "INDF", "MYOR", "SIDO",   # Konsumer
+    "ADRO", "ITMG", "PTBA", "INCO", "ANTM",   # Tambang
+    "PGAS", "AKRA", "MEDC", "ELSA", "HRUM",   # Energi & Kimia
+    "SMGR", "INTP", "SCMA", "MDKA", "TOWR",   # Infrastruktur
+    "KLBF", "KAEF", "MIKA", "SILO", "HEAL",   # Kesehatan
+    "EXCL", "ISAT", "FREN",                    # Telko
+    "CPIN", "JPFA", "MAIN",                    # Poultry
+    "JSMR", "WSKT", "WIKA", "PTPP", "ADHI",   # Konstruksi
+    "SMRA", "BSDE", "PWON", "CTRA", "DMAS",   # Properti
+    "ARTO", "BRIS", "BTPS", "BBYB",           # Bank Digital
+    "ACES", "MAPI", "LPPF", "RALS", "ERAA",   # Retail
+    "AALI", "LSIP", "SSMS",                    # Agribisnis
+]
+
 # ── ALL_SAHAM — Watchlist Gabungan Emiten IHSG (505 Saham) ────────────────────
 ALL_SAHAM = [
     # === A - B ===
@@ -87,6 +105,11 @@ ALL_SAHAM = [
 # Hapus duplikat, jaga urutan
 _seen = set()
 ALL_SAHAM = [x for x in ALL_SAHAM if not (x in _seen or _seen.add(x))]
+# Prioritaskan LQ45 & Big Cap di depan agar scan 150 saham pertama = saham paling aktif
+_all_set  = set(ALL_SAHAM)
+_lq_front = [s for s in LQ45_PRIORITY if s in _all_set]
+_rest     = [s for s in ALL_SAHAM if s not in set(LQ45_PRIORITY)]
+ALL_SAHAM = _lq_front + _rest
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CSS
@@ -489,6 +512,15 @@ def hitung_indikator(df):
         df["MA5"]       = c.rolling(5).mean()
         df["MA20"]      = c.rolling(20).mean()
         df["MA50"]      = c.rolling(50).mean()
+        # Nilai transaksi kumulatif hari ini (bukan hanya 1 candle terakhir)
+        try:
+            today_str = str(df.index[-1])[:10]
+            mask = [str(idx)[:10] == today_str for idx in df.index]
+            df_today = df[mask]
+            val_cumul = float((df_today["close"] * df_today["volume"]).sum())
+        except:
+            val_cumul = float(df["close"].iloc[-1] * df["volume"].iloc[-1])
+        df["val_today_cumul"] = val_cumul
         return df.iloc[-1].to_dict()
     except:
         return None
@@ -510,7 +542,7 @@ def tentukan_sinyal(ind, harga, prev, sesi_status, strategi="🟣 BSJP (Beli Sor
 
     ara_limit = get_ara_limit(prev)
     chg = (harga - prev) / prev * 100 if prev > 0 else 0
-    val_today = harga * vol
+    val_today = ind.get("val_today_cumul", harga * vol)  # kumulatif intraday
 
     # Kriteria default
     metrics = {}
@@ -518,7 +550,7 @@ def tentukan_sinyal(ind, harga, prev, sesi_status, strategi="🟣 BSJP (Beli Sor
 
     if strategi == "🟢 BPJS Sesi 1 (Pagi)":
         c_vol_spike   = vol >= 1.5 * volma
-        c_value       = val_today >= 5_000_000_000
+        c_value       = val_today >= 2_000_000_000   # Turunkan ke 2M untuk akurasi 15m cumul
         c_rsi         = 30 <= rsi <= 60
         c_trend       = ema9 > ema21
         c_macd        = mh > 0
@@ -537,7 +569,7 @@ def tentukan_sinyal(ind, harga, prev, sesi_status, strategi="🟣 BSJP (Beli Sor
 
     elif strategi == "🟡 BPJS Sesi 2 (Siang)":
         c_vol_spike   = vol >= 1.3 * volma
-        c_value       = val_today >= 10_000_000_000
+        c_value       = val_today >= 5_000_000_000   # Turunkan ke 5M untuk akurasi 15m cumul
         c_rsi         = 40 <= rsi <= 65
         c_trend       = ema9 > ema21
         c_macd        = mh > 0
@@ -556,7 +588,7 @@ def tentukan_sinyal(ind, harga, prev, sesi_status, strategi="🟣 BSJP (Beli Sor
 
     elif strategi == "🟣 BSJP (Beli Sore)":
         c_vol_spike   = vol >= 1.2 * volma
-        c_value       = val_today >= 20_000_000_000
+        c_value       = val_today >= 10_000_000_000   # Turunkan ke 10M (mid+big cap)
         c_volma20     = volma >= 1_000_000
         c_trend_med   = ma20 >= ma50
         c_trend_short = ma5 >= ma20
@@ -583,7 +615,7 @@ def tentukan_sinyal(ind, harga, prev, sesi_status, strategi="🟣 BSJP (Beli Sor
         else:             min_chg = 15.0
 
         c_vol_spike   = vol >= 2.0 * volma
-        c_value       = val_today >= 30_000_000_000
+        c_value       = val_today >= 15_000_000_000   # Turunkan ke 15M
         c_rsi         = rsi >= 65
         c_macd        = mh > 0
         c_min_chg     = chg >= min_chg
@@ -663,7 +695,7 @@ strategi = st.sidebar.radio(
 )
 
 # 📋 Jumlah Saham (Max 505 sesuai total ALL_SAHAM)
-max_sahams = st.sidebar.slider("📋 Jumlah Saham", 5, 505, 50)
+max_sahams = st.sidebar.slider("📋 Jumlah Saham", 5, 505, 150)
 
 # Info Box Strategi (Clean & Simple)
 if strategi == "🟢 BPJS Sesi 1 (Pagi)":
@@ -844,6 +876,17 @@ else:
     filtered_results.sort(key=lambda x: urutan.get(x["sinyal"], 9))
 
 # ── Ringkasan Global ──────────────────────────────────────────────────────────
+# -- Pesan jika tidak ada sinyal lolos filter --
+if not filtered_results and results:
+    _bc = sum(1 for r in results if r["sinyal"] == "BELI")
+    _sc = sum(1 for r in results if r["sinyal"] == "BSJP")
+    _jc = sum(1 for r in results if r["sinyal"] == "JUAL")
+    st.warning(
+        "⚠️ **Tidak ada sinyal yang lolos filter hari ini.**\n\n"
+        f"Dari {len(results)} saham: BELI={_bc} | BSJP={_sc} | JUAL={_jc}\n\n"
+        "**Tips:** Perbanyak slider Jumlah Saham, atau coba ganti ke strategi Swing Trading."
+    )
+
 n_beli   = sum(1 for r in filtered_results if r["sinyal"]=="BELI")
 n_bsjp   = sum(1 for r in filtered_results if r["sinyal"]=="BSJP")
 n_jual   = sum(1 for r in filtered_results if r["sinyal"]=="JUAL")
